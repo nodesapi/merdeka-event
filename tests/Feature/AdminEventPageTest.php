@@ -21,7 +21,7 @@ class AdminEventPageTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Atur acara utama dengan tampilan lebar');
-        $response->assertSee('Snapshot acara');
+        $response->assertSee('Jadwal pelaksanaan');
         $response->assertSee('data-admin-open', false);
     }
 }

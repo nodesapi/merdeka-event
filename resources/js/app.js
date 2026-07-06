@@ -684,3 +684,203 @@ interactiveObserver.observe(document.body, {
     childList: true,
     subtree: true,
 });
+
+const initHomeCelebration = () => {
+    const canvas = document.querySelector('[data-merdeka-celebration]');
+
+    if (!(canvas instanceof HTMLCanvasElement) || canvas.dataset.ready === 'true') {
+        return;
+    }
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        canvas.remove();
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+        return;
+    }
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const particles = [];
+    const fireworks = [];
+    const confetti = [];
+    const startedAt = performance.now();
+    const stopAfter = 9000;
+    const fadeAfter = 6500;
+    const isCompact = window.innerWidth < 768;
+    let rafId = 0;
+
+    const resize = () => {
+        const width = window.innerWidth;
+        const height = Math.max(window.innerHeight, 640);
+
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+
+    const colors = ['#ef4444', '#f97316', '#facc15', '#ffffff', '#fb7185'];
+    const random = (min, max) => Math.random() * (max - min) + min;
+    const pick = (items) => items[Math.floor(Math.random() * items.length)];
+
+    const burst = (x, y, amount, spread, speedRange, gravity = 0.06) => {
+        for (let i = 0; i < amount; i += 1) {
+            const angle = random(-spread, spread);
+            const speed = random(speedRange[0], speedRange[1]);
+
+            particles.push({
+                x,
+                y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: random(28, 48),
+                size: random(1.8, 3.8),
+                color: pick(colors),
+                gravity,
+                alpha: 1,
+            });
+        }
+    };
+
+    const launchFirework = () => {
+        const width = canvas.width / dpr;
+        const height = canvas.height / dpr;
+        const x = random(width * 0.18, width * 0.82);
+        const y = random(height * 0.15, height * 0.42);
+
+        fireworks.push({
+            x,
+            y: height + random(40, 120),
+            targetY: y,
+            speed: random(6.5, 8.5),
+            color: pick(colors),
+        });
+    };
+
+    const sprinkleConfetti = () => {
+        const width = canvas.width / dpr;
+        const amount = isCompact ? 26 : 40;
+
+        for (let i = 0; i < amount; i += 1) {
+            confetti.push({
+                x: random(0, width),
+                y: random(-120, -20),
+                vx: random(-0.8, 0.8),
+                vy: random(1.2, 2.6),
+                drift: random(-0.04, 0.04),
+                size: random(4, 8),
+                rotation: random(0, Math.PI * 2),
+                spin: random(-0.08, 0.08),
+                color: pick(colors),
+                alpha: random(0.65, 1),
+            });
+        }
+    };
+
+    const update = (now) => {
+        const elapsed = now - startedAt;
+        const width = canvas.width / dpr;
+        const height = canvas.height / dpr;
+        const fadeMultiplier = elapsed > fadeAfter ? Math.max(0, 1 - (elapsed - fadeAfter) / (stopAfter - fadeAfter)) : 1;
+
+        ctx.clearRect(0, 0, width, height);
+
+        if (elapsed < 2800 && Math.random() < (isCompact ? 0.03 : 0.05)) {
+            sprinkleConfetti();
+        }
+
+        if (elapsed < 5200 && Math.random() < (isCompact ? 0.025 : 0.04)) {
+            launchFirework();
+        }
+
+        fireworks.forEach((rocket, index) => {
+            rocket.y -= rocket.speed;
+            rocket.speed *= 0.992;
+
+            ctx.save();
+            ctx.globalAlpha = 0.9 * fadeMultiplier;
+            ctx.fillStyle = rocket.color;
+            ctx.beginPath();
+            ctx.arc(rocket.x, rocket.y, 2.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            if (rocket.y <= rocket.targetY) {
+                burst(rocket.x, rocket.y, isCompact ? 18 : 28, Math.PI, [1.2, 3.5], 0.035);
+                fireworks.splice(index, 1);
+            }
+        });
+
+        particles.forEach((particle, index) => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vy += particle.gravity;
+            particle.life -= 1;
+            particle.alpha = Math.max(0, particle.life / 48) * fadeMultiplier;
+
+            ctx.save();
+            ctx.globalAlpha = particle.alpha;
+            ctx.fillStyle = particle.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            if (particle.life <= 0) {
+                particles.splice(index, 1);
+            }
+        });
+
+        confetti.forEach((piece, index) => {
+            piece.x += piece.vx;
+            piece.y += piece.vy;
+            piece.vx += piece.drift;
+            piece.rotation += piece.spin;
+            piece.alpha = Math.max(0, piece.alpha - 0.0028) * fadeMultiplier;
+
+            ctx.save();
+            ctx.translate(piece.x, piece.y);
+            ctx.rotate(piece.rotation);
+            ctx.globalAlpha = piece.alpha;
+            ctx.fillStyle = piece.color;
+            ctx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.7);
+            ctx.restore();
+
+            if (piece.y > height + 40 || piece.alpha <= 0.03) {
+                confetti.splice(index, 1);
+            }
+        });
+
+        if (elapsed < stopAfter || fireworks.length || particles.length || confetti.length) {
+            rafId = window.requestAnimationFrame(update);
+            return;
+        }
+
+        canvas.style.transition = 'opacity 600ms ease';
+        canvas.style.opacity = '0';
+        window.setTimeout(() => canvas.remove(), 700);
+    };
+
+    resize();
+    sprinkleConfetti();
+    window.setTimeout(launchFirework, 400);
+    window.setTimeout(launchFirework, 1200);
+    window.setTimeout(launchFirework, 2100);
+    rafId = window.requestAnimationFrame(update);
+
+    window.addEventListener('resize', resize, { passive: true });
+    canvas.dataset.ready = 'true';
+
+    canvas.addEventListener('remove', () => {
+        if (rafId) {
+            window.cancelAnimationFrame(rafId);
+        }
+    });
+};
+
+initHomeCelebration();

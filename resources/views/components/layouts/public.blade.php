@@ -3,6 +3,10 @@
 @php
     $siteName = $site?->site_name ?: ($eventName ?: config('app.name', 'Portal Warga'));
     $tagline = $site?->tagline ?: 'Portal Informasi Warga';
+    $metaTitle = $title ? $title . ' - ' . $siteName : $siteName;
+    $metaDescription = $site?->tagline ?: 'Portal informasi warga, panitia, lomba, dan transparansi dana kegiatan kemerdekaan.';
+    $metaUrl = url()->current();
+    $metaImage = $site?->og_image_url ? url($site->og_image_url) : ($site?->hero_banner_url ? url($site->hero_banner_url) : null);
 @endphp
 
 <!DOCTYPE html>
@@ -10,7 +14,24 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ? $title . ' — ' . $siteName : $siteName }}</title>
+    <title>{{ $metaTitle }}</title>
+    <meta name="description" content="{{ $metaDescription }}">
+    @if ($site?->google_site_verification)
+        <meta name="google-site-verification" content="{{ $site->google_site_verification }}">
+    @endif
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ $metaTitle }}">
+    <meta property="og:description" content="{{ $metaDescription }}">
+    <meta property="og:url" content="{{ $metaUrl }}">
+    @if ($metaImage)
+        <meta property="og:image" content="{{ $metaImage }}">
+        <meta name="twitter:card" content="summary_large_image">
+        <meta name="twitter:image" content="{{ $metaImage }}">
+    @else
+        <meta name="twitter:card" content="summary">
+    @endif
+    <meta name="twitter:title" content="{{ $metaTitle }}">
+    <meta name="twitter:description" content="{{ $metaDescription }}">
     @if ($site?->favicon_url)
         <link rel="icon" href="{{ $site->favicon_url }}">
     @endif
@@ -18,6 +39,9 @@
 </head>
 <body class="antialiased min-h-screen flex flex-col overflow-x-clip">
     <div class="merdeka-ribbon h-1.5 w-full"></div>
+    @if (request()->routeIs('public.home'))
+        <canvas class="merdeka-celebration-layer" data-merdeka-celebration aria-hidden="true"></canvas>
+    @endif
 
     @php
         $navItems = [
@@ -64,7 +88,6 @@
         {{ $slot }}
     </main>
 
-    {{-- Ornamen siluet HUT RI tepat di atas footer (dibatasi ke resolusi asli agar tidak pecah di layar lebar) --}}
     <div class="mt-10 w-full overflow-hidden leading-none" aria-hidden="true">
         <img src="/banner/siluet-hut-ri.png" alt="" class="pointer-events-none mx-auto block h-auto w-full max-w-[1536px] select-none">
     </div>
@@ -105,10 +128,8 @@
         </div>
     </footer>
 
-    {{-- Spacer agar konten terakhir tidak tertutup floating nav (mobile) --}}
     <div class="h-24 md:hidden" aria-hidden="true"></div>
 
-    {{-- Floating bottom nav (mobile only) --}}
     <nav data-bottom-nav class="fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-md items-center justify-around gap-0.5 overflow-hidden rounded-2xl border border-stone-200 bg-white/95 p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.12)] backdrop-blur md:hidden">
         @foreach ($navItems as $item)
             @php $active = request()->routeIs($item['route']) || ($item['route'] === 'public.competitions' && request()->routeIs('public.competition.show')); @endphp
@@ -125,7 +146,6 @@
             var nav = document.querySelector('[data-bottom-nav]');
             if (!nav) return;
             function place() {
-                // Lebar viewport asli (tidak terpengaruh horizontal-overflow halaman)
                 var vw = document.documentElement.clientWidth || window.innerWidth;
                 var w = Math.min(vw - 24, 448);
                 nav.style.width = w + 'px';

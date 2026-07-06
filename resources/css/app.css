@@ -443,6 +443,14 @@
         color: #b91c1c;
     }
 
+    .merdeka-celebration-layer {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        pointer-events: none;
+        opacity: 0.92;
+    }
+
     @media (max-width: 640px) {
         .merdeka-popover {
             padding: 0.75rem;
@@ -454,6 +462,12 @@
 
         .merdeka-datetime-footer {
             grid-template-columns: 1fr;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .merdeka-celebration-layer {
+            display: none;
         }
     }
 }

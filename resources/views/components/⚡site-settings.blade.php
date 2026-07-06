@@ -1,9 +1,9 @@
 <?php
 
-use Livewire\Component;
-use Livewire\WithFileUploads;
 use App\Models\SiteSetting;
 use App\Support\ImageConverter;
+use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new class extends Component
 {
@@ -18,22 +18,24 @@ new class extends Component
     public $bank_name = '';
     public $bank_account_number = '';
     public $bank_account_holder = '';
+    public $google_site_verification = '';
 
-    // Uploads
     public $logo;
     public $favicon;
     public $hero_banner;
+    public $og_image;
 
-    // Existing stored paths (for preview + deletion)
     public ?string $logo_path = null;
     public ?string $favicon_path = null;
     public ?string $hero_banner_path = null;
+    public ?string $og_image_path = null;
 
     public $success_message = '';
 
     public function mount()
     {
         $setting = SiteSetting::current();
+
         $this->settingId = $setting->id;
         $this->site_name = $setting->site_name;
         $this->tagline = $setting->tagline;
@@ -42,9 +44,11 @@ new class extends Component
         $this->bank_name = $setting->bank_name;
         $this->bank_account_number = $setting->bank_account_number;
         $this->bank_account_holder = $setting->bank_account_holder;
+        $this->google_site_verification = $setting->google_site_verification ?? '';
         $this->logo_path = $setting->logo_path;
         $this->favicon_path = $setting->favicon_path;
         $this->hero_banner_path = $setting->hero_banner_path;
+        $this->og_image_path = $setting->og_image_path;
     }
 
     public function save()
@@ -57,9 +61,11 @@ new class extends Component
             'bank_name' => 'nullable|string|max:100',
             'bank_account_number' => 'nullable|string|max:60',
             'bank_account_holder' => 'nullable|string|max:255',
+            'google_site_verification' => 'nullable|string|max:255',
             'logo' => 'nullable|image|max:4096',
             'favicon' => 'nullable|max:1024|mimes:png,ico,svg,jpg,jpeg',
             'hero_banner' => 'nullable|image|max:8192',
+            'og_image' => 'nullable|image|max:4096|mimes:jpg,jpeg,png',
         ]);
 
         $setting = SiteSetting::findOrFail($this->settingId);
@@ -72,6 +78,7 @@ new class extends Component
             'bank_name' => $this->bank_name,
             'bank_account_number' => $this->bank_account_number,
             'bank_account_holder' => $this->bank_account_holder,
+            'google_site_verification' => trim((string) $this->google_site_verification) ?: null,
         ];
 
         if ($this->logo) {
@@ -89,12 +96,18 @@ new class extends Component
             $data['hero_banner_path'] = ImageConverter::storeAsWebp($this->hero_banner, 'site', 1920);
         }
 
+        if ($this->og_image) {
+            ImageConverter::delete($setting->og_image_path);
+            $data['og_image_path'] = ImageConverter::storeOriginal($this->og_image, 'site');
+        }
+
         $setting->update($data);
 
-        $this->reset(['logo', 'favicon', 'hero_banner']);
+        $this->reset(['logo', 'favicon', 'hero_banner', 'og_image']);
         $this->logo_path = $setting->logo_path;
         $this->favicon_path = $setting->favicon_path;
         $this->hero_banner_path = $setting->hero_banner_path;
+        $this->og_image_path = $setting->og_image_path;
         $this->success_message = 'Pengaturan website berhasil disimpan.';
     }
 
@@ -102,6 +115,7 @@ new class extends Component
     {
         $setting = SiteSetting::findOrFail($this->settingId);
         $column = $field . '_path';
+
         ImageConverter::delete($setting->{$column});
         $setting->update([$column => null]);
         $this->{$column} = null;
@@ -119,6 +133,7 @@ new class extends Component
             'logoUrl' => $this->logo_path ? '/storage/' . ltrim($this->logo_path, '/') : null,
             'faviconUrl' => $this->favicon_path ? '/storage/' . ltrim($this->favicon_path, '/') : null,
             'bannerUrl' => $this->hero_banner_path ? '/storage/' . ltrim($this->hero_banner_path, '/') : null,
+            'ogImageUrl' => $this->og_image_path ? '/storage/' . ltrim($this->og_image_path, '/') : null,
         ];
     }
 };
@@ -126,120 +141,155 @@ new class extends Component
 
 <div class="w-full">
     @if ($success_message)
-        <div class="mb-6 p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg flex items-center justify-between shadow-sm">
-            <span class="font-medium text-sm">{{ $success_message }}</span>
-            <button wire:click="dismissAlert" class="text-emerald-500 hover:text-emerald-800 font-bold">&times;</button>
+        <div class="mb-6 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm">
+            <span class="text-sm font-medium">{{ $success_message }}</span>
+            <button wire:click="dismissAlert" class="font-bold text-emerald-500 hover:text-emerald-800">&times;</button>
         </div>
     @endif
 
     <form wire:submit.prevent="save" class="space-y-6">
-        <!-- Identity -->
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h3 class="font-semibold text-base text-slate-900 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
-                <span class="w-2 h-4 bg-red-600 rounded"></span> Identitas Website
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
+                <span class="h-4 w-2 rounded bg-red-600"></span> Identitas Website
             </h3>
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Website / Acara</label>
-                    <input type="text" wire:model="site_name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: Gebyar Kemerdekaan RW 05">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Nama Website / Acara</label>
+                    <input type="text" wire:model="site_name" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Contoh: Gebyar Kemerdekaan RW 05">
                     @error('site_name') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tagline</label>
-                    <input type="text" wire:model="tagline" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: Portal transparansi dan kegiatan warga">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Tagline</label>
+                    <input type="text" wire:model="tagline" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Contoh: Portal transparansi dan kegiatan warga">
                     @error('tagline') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
             </div>
         </div>
 
-        <!-- Media -->
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h3 class="font-semibold text-base text-slate-900 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
-                <span class="w-2 h-4 bg-red-600 rounded"></span> Logo, Favicon &amp; Banner
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
+                <span class="h-4 w-2 rounded bg-red-600"></span> Logo, Favicon, Banner, dan OG Image
             </h3>
-            <div class="grid gap-6 md:grid-cols-3">
-                {{-- Logo --}}
+            <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-2">Logo <span class="text-slate-400">(→ WebP)</span></label>
-                    <div class="mb-2 flex h-24 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 overflow-hidden">
-                        @if ($logo) <img src="{{ $logo->temporaryUrl() }}" class="max-h-full object-contain">
-                        @elseif ($logoUrl) <img src="{{ $logoUrl }}" class="max-h-full object-contain">
-                        @else <span class="text-xs text-slate-400">Belum ada logo</span> @endif
+                    <label class="mb-2 block text-xs font-semibold text-slate-600">Logo <span class="text-slate-400">(WebP)</span></label>
+                    <div class="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                        @if ($logo)
+                            <img src="{{ $logo->temporaryUrl() }}" class="max-h-full object-contain">
+                        @elseif ($logoUrl)
+                            <img src="{{ $logoUrl }}" class="max-h-full object-contain">
+                        @else
+                            <span class="text-xs text-slate-400">Belum ada logo</span>
+                        @endif
                     </div>
-                    <input type="file" wire:model="logo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:text-red-700 file:font-medium">
-                    <div wire:loading wire:target="logo" class="mt-1 text-xs text-slate-400">Mengunggah…</div>
+                    <input type="file" wire:model="logo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                    <div wire:loading wire:target="logo" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
                     @error('logo') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                     @if ($logoUrl) <button type="button" wire:click="removeImage('logo')" class="mt-1 text-xs text-red-500 hover:underline">Hapus logo</button> @endif
                 </div>
 
-                {{-- Favicon --}}
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-2">Favicon <span class="text-slate-400">(png/ico/svg)</span></label>
-                    <div class="mb-2 flex h-24 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 overflow-hidden">
-                        @if ($favicon) <img src="{{ $favicon->temporaryUrl() }}" class="max-h-16 object-contain">
-                        @elseif ($faviconUrl) <img src="{{ $faviconUrl }}" class="max-h-16 object-contain">
-                        @else <span class="text-xs text-slate-400">Belum ada favicon</span> @endif
+                    <label class="mb-2 block text-xs font-semibold text-slate-600">Favicon <span class="text-slate-400">(png/ico/svg)</span></label>
+                    <div class="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                        @if ($favicon)
+                            <img src="{{ $favicon->temporaryUrl() }}" class="max-h-16 object-contain">
+                        @elseif ($faviconUrl)
+                            <img src="{{ $faviconUrl }}" class="max-h-16 object-contain">
+                        @else
+                            <span class="text-xs text-slate-400">Belum ada favicon</span>
+                        @endif
                     </div>
-                    <input type="file" wire:model="favicon" accept=".png,.ico,.svg,image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:text-red-700 file:font-medium">
-                    <div wire:loading wire:target="favicon" class="mt-1 text-xs text-slate-400">Mengunggah…</div>
+                    <input type="file" wire:model="favicon" accept=".png,.ico,.svg,image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                    <div wire:loading wire:target="favicon" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
                     @error('favicon') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                     @if ($faviconUrl) <button type="button" wire:click="removeImage('favicon')" class="mt-1 text-xs text-red-500 hover:underline">Hapus favicon</button> @endif
                 </div>
 
-                {{-- Banner --}}
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-2">Banner Hero <span class="text-slate-400">(→ WebP)</span></label>
-                    <div class="mb-2 flex h-24 items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 overflow-hidden">
-                        @if ($hero_banner) <img src="{{ $hero_banner->temporaryUrl() }}" class="h-full w-full object-cover">
-                        @elseif ($bannerUrl) <img src="{{ $bannerUrl }}" class="h-full w-full object-cover">
-                        @else <span class="text-xs text-slate-400">Belum ada banner</span> @endif
+                    <label class="mb-2 block text-xs font-semibold text-slate-600">Banner Hero <span class="text-slate-400">(WebP)</span></label>
+                    <div class="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                        @if ($hero_banner)
+                            <img src="{{ $hero_banner->temporaryUrl() }}" class="h-full w-full object-cover">
+                        @elseif ($bannerUrl)
+                            <img src="{{ $bannerUrl }}" class="h-full w-full object-cover">
+                        @else
+                            <span class="text-xs text-slate-400">Belum ada banner</span>
+                        @endif
                     </div>
-                    <input type="file" wire:model="hero_banner" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:text-red-700 file:font-medium">
-                    <div wire:loading wire:target="hero_banner" class="mt-1 text-xs text-slate-400">Mengunggah…</div>
+                    <input type="file" wire:model="hero_banner" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                    <div wire:loading wire:target="hero_banner" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
                     @error('hero_banner') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                     @if ($bannerUrl) <button type="button" wire:click="removeImage('hero_banner')" class="mt-1 text-xs text-red-500 hover:underline">Hapus banner</button> @endif
+                </div>
+
+                <div>
+                    <label class="mb-2 block text-xs font-semibold text-slate-600">OG Image <span class="text-slate-400">(jpg/png, ideal 1200x630)</span></label>
+                    <div class="mb-2 flex h-24 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                        @if ($og_image)
+                            <img src="{{ $og_image->temporaryUrl() }}" class="h-full w-full object-cover">
+                        @elseif ($ogImageUrl)
+                            <img src="{{ $ogImageUrl }}" class="h-full w-full object-cover">
+                        @else
+                            <span class="text-xs text-slate-400">Belum ada OG image</span>
+                        @endif
+                    </div>
+                    <input type="file" wire:model="og_image" accept=".jpg,.jpeg,.png,image/jpeg,image/png" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                    <div wire:loading wire:target="og_image" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
+                    @error('og_image') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                    @if ($ogImageUrl) <button type="button" wire:click="removeImage('og_image')" class="mt-1 text-xs text-red-500 hover:underline">Hapus OG image</button> @endif
                 </div>
             </div>
         </div>
 
-        <!-- Contact & bank -->
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h3 class="font-semibold text-base text-slate-900 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
-                <span class="w-2 h-4 bg-red-600 rounded"></span> Kontak &amp; Rekening Panitia
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
+                <span class="h-4 w-2 rounded bg-red-600"></span> SEO &amp; Integrasi
+            </h3>
+            <div>
+                <label class="mb-1 block text-xs font-semibold text-slate-600">Google Site Verification</label>
+                <input type="text" wire:model="google_site_verification" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Contoh: abc123XYZ_google_verify_code">
+                <p class="mt-2 text-xs text-slate-500">Isi hanya kode verifikasinya saja, tanpa tag meta penuh.</p>
+                @error('google_site_verification') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
+                <span class="h-4 w-2 rounded bg-red-600"></span> Kontak &amp; Rekening Panitia
             </h3>
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">No. WhatsApp Utama</label>
-                    <input type="text" wire:model="contact_whatsapp" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="0812xxxxxxx">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">No. WhatsApp Utama</label>
+                    <input type="text" wire:model="contact_whatsapp" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="0812xxxxxxx">
                     @error('contact_whatsapp') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kontak (PJ)</label>
-                    <input type="text" wire:model="contact_person" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Ketua Panitia">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Nama Kontak (PJ)</label>
+                    <input type="text" wire:model="contact_person" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Ketua Panitia">
                     @error('contact_person') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Bank</label>
-                    <input type="text" wire:model="bank_name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="BCA / BRI / Mandiri">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Nama Bank</label>
+                    <input type="text" wire:model="bank_name" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="BCA / BRI / Mandiri">
                     @error('bank_name') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Nomor Rekening</label>
-                    <input type="text" wire:model="bank_account_number" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="8800012345">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Nomor Rekening</label>
+                    <input type="text" wire:model="bank_account_number" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="8800012345">
                     @error('bank_account_number') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div class="md:col-span-2">
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Atas Nama</label>
-                    <input type="text" wire:model="bank_account_holder" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Panitia RT 07">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Atas Nama</label>
+                    <input type="text" wire:model="bank_account_holder" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Panitia RT 07">
                     @error('bank_account_holder') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
             </div>
         </div>
 
         <div class="flex justify-end">
-            <button type="submit" wire:loading.attr="disabled" class="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-semibold shadow-sm disabled:opacity-60">
+            <button type="submit" wire:loading.attr="disabled" class="rounded-md bg-red-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60">
                 <span wire:loading.remove wire:target="save">Simpan Pengaturan</span>
-                <span wire:loading wire:target="save">Menyimpan…</span>
+                <span wire:loading wire:target="save">Menyimpan...</span>
             </button>
         </div>
     </form>

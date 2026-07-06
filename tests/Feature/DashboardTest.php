@@ -21,8 +21,8 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Dashboard');
-        $response->assertSee('Registrasi Data Warga');
-        $response->assertSee('Pencatatan Dana Masuk & Keluar', false);
-        $response->assertSee('Transaksi Dana Terakhir');
+        $response->assertSee('Pendaftaran Warga Terbaru');
+        $response->assertSee('Komposisi Kontribusi Warga');
+        $response->assertSee('Transaksi Terbaru');
     }
 }

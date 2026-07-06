@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\Model;
     'logo_path',
     'favicon_path',
     'hero_banner_path',
+    'og_image_path',
+    'google_site_verification',
     'contact_whatsapp',
     'contact_person',
     'bank_name',
@@ -56,6 +58,11 @@ class SiteSetting extends Model
     public function getHeroBannerUrlAttribute(): ?string
     {
         return $this->assetUrl($this->hero_banner_path);
+    }
+
+    public function getOgImageUrlAttribute(): ?string
+    {
+        return $this->assetUrl($this->og_image_path);
     }
 
     /**
