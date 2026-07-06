@@ -1,7 +1,7 @@
-<x-layouts.public title="Transparansi Dana" :eventName="$event?->name">
+<x-layouts.public title="Laporan" :eventName="$event?->name">
     <div>
-        <span class="merdeka-badge">Laporan Dana</span>
-        <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-stone-900">Transparansi Pemasukan &amp; Pengeluaran</h1>
+        <span class="merdeka-badge">Laporan</span>
+        <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-stone-900">Laporan Pemasukan &amp; Pengeluaran</h1>
         <p class="mt-1.5 max-w-2xl text-sm leading-6 text-stone-500">Warga dapat memantau dana masuk dan dana keluar secara terbuka.</p>
         <a href="{{ route('public.family-form') }}" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-red-800">
             <x-icon name="users" class="h-4 w-4" /> Isi Form Warga

@@ -686,9 +686,10 @@ interactiveObserver.observe(document.body, {
 });
 
 const initHomeCelebration = () => {
+    const hero = document.querySelector('[data-merdeka-hero]');
     const canvas = document.querySelector('[data-merdeka-celebration]');
 
-    if (!(canvas instanceof HTMLCanvasElement) || canvas.dataset.ready === 'true') {
+    if (!(hero instanceof HTMLElement) || !(canvas instanceof HTMLCanvasElement) || canvas.dataset.ready === 'true') {
         return;
     }
 
@@ -704,18 +705,18 @@ const initHomeCelebration = () => {
     }
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const particles = [];
-    const fireworks = [];
-    const confetti = [];
+    const sparks = [];
+    const streamers = [];
     const startedAt = performance.now();
-    const stopAfter = 9000;
-    const fadeAfter = 6500;
+    const stopAfter = 5200;
+    const fadeAfter = 3600;
     const isCompact = window.innerWidth < 768;
     let rafId = 0;
 
     const resize = () => {
-        const width = window.innerWidth;
-        const height = Math.max(window.innerHeight, 640);
+        const rect = hero.getBoundingClientRect();
+        const width = Math.max(rect.width, window.innerWidth);
+        const height = Math.max(rect.height, isCompact ? 260 : 360);
 
         canvas.width = Math.round(width * dpr);
         canvas.height = Math.round(height * dpr);
@@ -724,60 +725,68 @@ const initHomeCelebration = () => {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
 
-    const colors = ['#ef4444', '#f97316', '#facc15', '#ffffff', '#fb7185'];
+    const colors = ['#ef4444', '#fb7185', '#f97316', '#facc15', '#ffffff'];
     const random = (min, max) => Math.random() * (max - min) + min;
     const pick = (items) => items[Math.floor(Math.random() * items.length)];
 
-    const burst = (x, y, amount, spread, speedRange, gravity = 0.06) => {
+    const burst = (x, y, amount, radius, style = 'firework') => {
         for (let i = 0; i < amount; i += 1) {
-            const angle = random(-spread, spread);
-            const speed = random(speedRange[0], speedRange[1]);
+            const angle = random(0, Math.PI * 2);
+            const speed = style === 'firework' ? random(radius * 0.18, radius * 0.32) : random(radius * 0.1, radius * 0.18);
 
-            particles.push({
+            sparks.push({
                 x,
                 y,
                 vx: Math.cos(angle) * speed,
                 vy: Math.sin(angle) * speed,
-                life: random(28, 48),
-                size: random(1.8, 3.8),
+                life: random(style === 'firework' ? 24 : 20, style === 'firework' ? 44 : 30),
+                size: random(style === 'firework' ? 1.6 : 2.4, style === 'firework' ? 3.2 : 4.6),
                 color: pick(colors),
-                gravity,
+                gravity: style === 'firework' ? 0.018 : 0.05,
                 alpha: 1,
+                ring: style === 'firework' ? random(0.2, 0.5) : 0,
             });
         }
     };
 
-    const launchFirework = () => {
+    const launchBurstGroup = () => {
         const width = canvas.width / dpr;
-        const height = canvas.height / dpr;
-        const x = random(width * 0.18, width * 0.82);
-        const y = random(height * 0.15, height * 0.42);
+        const height = canvas.height / dpr * 0.82;
+        const positions = isCompact
+            ? [
+                  { x: width * 0.18, y: height * 0.18 },
+                  { x: width * 0.82, y: height * 0.24 },
+              ]
+            : [
+                  { x: width * 0.14, y: height * 0.14 },
+                  { x: width * 0.84, y: height * 0.18 },
+                  { x: width * 0.68, y: height * 0.1 },
+              ];
 
-        fireworks.push({
-            x,
-            y: height + random(40, 120),
-            targetY: y,
-            speed: random(6.5, 8.5),
-            color: pick(colors),
+        positions.forEach((point, index) => {
+            window.setTimeout(() => {
+                burst(point.x, point.y, isCompact ? 16 : 24, isCompact ? 10 : 14, 'firework');
+            }, index * 140);
         });
     };
 
-    const sprinkleConfetti = () => {
+    const sprinkleConfetti = (initial = false) => {
         const width = canvas.width / dpr;
-        const amount = isCompact ? 26 : 40;
+        const height = canvas.height / dpr;
+        const amount = initial ? (isCompact ? 14 : 22) : (isCompact ? 6 : 10);
 
         for (let i = 0; i < amount; i += 1) {
-            confetti.push({
-                x: random(0, width),
-                y: random(-120, -20),
-                vx: random(-0.8, 0.8),
-                vy: random(1.2, 2.6),
-                drift: random(-0.04, 0.04),
-                size: random(4, 8),
+            streamers.push({
+                x: initial ? random(width * 0.08, width * 0.92) : random(width * 0.16, width * 0.84),
+                y: initial ? random(height * 0.02, height * 0.1) : random(height * 0.08, height * 0.18),
+                vx: random(-0.35, 0.35),
+                vy: random(0.45, 1.25),
+                drift: random(-0.018, 0.018),
+                size: random(5, 9),
                 rotation: random(0, Math.PI * 2),
-                spin: random(-0.08, 0.08),
+                spin: random(-0.03, 0.03),
                 color: pick(colors),
-                alpha: random(0.65, 1),
+                alpha: random(0.45, 0.82),
             });
         }
     };
@@ -790,97 +799,76 @@ const initHomeCelebration = () => {
 
         ctx.clearRect(0, 0, width, height);
 
-        if (elapsed < 2800 && Math.random() < (isCompact ? 0.03 : 0.05)) {
+        if (elapsed < 2800 && Math.random() < (isCompact ? 0.04 : 0.06)) {
             sprinkleConfetti();
         }
 
-        if (elapsed < 5200 && Math.random() < (isCompact ? 0.025 : 0.04)) {
-            launchFirework();
+        if (elapsed > 1200 && elapsed < 3200 && Math.random() < (isCompact ? 0.022 : 0.03)) {
+            const x = random(width * 0.2, width * 0.8);
+            const y = random(height * 0.1, height * 0.28);
+            burst(x, y, isCompact ? 10 : 14, isCompact ? 8 : 10, 'spark');
         }
 
-        fireworks.forEach((rocket, index) => {
-            rocket.y -= rocket.speed;
-            rocket.speed *= 0.992;
+        sparks.forEach((spark, index) => {
+            spark.x += spark.vx;
+            spark.y += spark.vy;
+            spark.vy += spark.gravity;
+            spark.life -= 1;
+            spark.alpha = Math.max(0, spark.life / 44) * fadeMultiplier;
 
+            const size = spark.size + spark.ring;
             ctx.save();
-            ctx.globalAlpha = 0.9 * fadeMultiplier;
-            ctx.fillStyle = rocket.color;
+            ctx.globalAlpha = spark.alpha;
+            ctx.fillStyle = spark.color;
             ctx.beginPath();
-            ctx.arc(rocket.x, rocket.y, 2.2, 0, Math.PI * 2);
+            ctx.arc(spark.x, spark.y, size, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
 
-            if (rocket.y <= rocket.targetY) {
-                burst(rocket.x, rocket.y, isCompact ? 18 : 28, Math.PI, [1.2, 3.5], 0.035);
-                fireworks.splice(index, 1);
+            if (spark.life <= 0) {
+                sparks.splice(index, 1);
             }
         });
 
-        particles.forEach((particle, index) => {
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-            particle.vy += particle.gravity;
-            particle.life -= 1;
-            particle.alpha = Math.max(0, particle.life / 48) * fadeMultiplier;
-
-            ctx.save();
-            ctx.globalAlpha = particle.alpha;
-            ctx.fillStyle = particle.color;
-            ctx.beginPath();
-            ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.restore();
-
-            if (particle.life <= 0) {
-                particles.splice(index, 1);
-            }
-        });
-
-        confetti.forEach((piece, index) => {
+        streamers.forEach((piece, index) => {
             piece.x += piece.vx;
             piece.y += piece.vy;
             piece.vx += piece.drift;
             piece.rotation += piece.spin;
-            piece.alpha = Math.max(0, piece.alpha - 0.0028) * fadeMultiplier;
+            piece.alpha = Math.max(0, piece.alpha - 0.0036) * fadeMultiplier;
 
             ctx.save();
             ctx.translate(piece.x, piece.y);
             ctx.rotate(piece.rotation);
             ctx.globalAlpha = piece.alpha;
             ctx.fillStyle = piece.color;
-            ctx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.7);
+            ctx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.55);
             ctx.restore();
 
-            if (piece.y > height + 40 || piece.alpha <= 0.03) {
-                confetti.splice(index, 1);
+            if (piece.y > height * 0.82 || piece.alpha <= 0.04) {
+                streamers.splice(index, 1);
             }
         });
 
-        if (elapsed < stopAfter || fireworks.length || particles.length || confetti.length) {
+        if (elapsed < stopAfter || sparks.length || streamers.length) {
             rafId = window.requestAnimationFrame(update);
             return;
         }
 
-        canvas.style.transition = 'opacity 600ms ease';
+        canvas.style.transition = 'opacity 500ms ease';
         canvas.style.opacity = '0';
-        window.setTimeout(() => canvas.remove(), 700);
+        window.setTimeout(() => canvas.remove(), 550);
     };
 
     resize();
-    sprinkleConfetti();
-    window.setTimeout(launchFirework, 400);
-    window.setTimeout(launchFirework, 1200);
-    window.setTimeout(launchFirework, 2100);
+    sprinkleConfetti(true);
+    launchBurstGroup();
+    window.setTimeout(() => sprinkleConfetti(true), 700);
+    window.setTimeout(launchBurstGroup, 1700);
     rafId = window.requestAnimationFrame(update);
 
     window.addEventListener('resize', resize, { passive: true });
     canvas.dataset.ready = 'true';
-
-    canvas.addEventListener('remove', () => {
-        if (rafId) {
-            window.cancelAnimationFrame(rafId);
-        }
-    });
 };
 
 initHomeCelebration();

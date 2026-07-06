@@ -443,12 +443,17 @@
         color: #b91c1c;
     }
 
+    [data-merdeka-hero] {
+        isolation: isolate;
+    }
+
     .merdeka-celebration-layer {
-        position: fixed;
-        inset: 0;
-        z-index: 20;
+        position: absolute;
+        inset: -1.25rem 0 auto;
+        z-index: 1;
         pointer-events: none;
-        opacity: 0.92;
+        opacity: 0.78;
+        mix-blend-mode: screen;
     }
 
     @media (max-width: 640px) {

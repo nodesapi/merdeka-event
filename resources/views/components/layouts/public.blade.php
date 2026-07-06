@@ -39,16 +39,13 @@
 </head>
 <body class="antialiased min-h-screen flex flex-col overflow-x-clip">
     <div class="merdeka-ribbon h-1.5 w-full"></div>
-    @if (request()->routeIs('public.home'))
-        <canvas class="merdeka-celebration-layer" data-merdeka-celebration aria-hidden="true"></canvas>
-    @endif
 
     @php
         $navItems = [
             ['route' => 'public.home', 'label' => 'Beranda', 'short' => 'Beranda', 'icon' => 'home'],
             ['route' => 'public.committee', 'label' => 'Panitia', 'short' => 'Panitia', 'icon' => 'users'],
             ['route' => 'public.competitions', 'label' => 'Lomba', 'short' => 'Lomba', 'icon' => 'trophy'],
-            ['route' => 'public.finance', 'label' => 'Transparansi Dana', 'short' => 'Dana', 'icon' => 'wallet'],
+            ['route' => 'public.finance', 'label' => 'Laporan', 'short' => 'Laporan', 'icon' => 'wallet'],
             ['route' => 'public.family-form', 'label' => 'Form Warga', 'short' => 'Form', 'icon' => 'clipboard'],
         ];
     @endphp

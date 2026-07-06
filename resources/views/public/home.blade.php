@@ -4,113 +4,113 @@
         $isUpcoming = $event?->start_date && $event->start_date->isFuture();
     @endphp
 
-    {{-- ============================ HERO ============================ --}}
-    @if ($site?->hero_banner_url)
-        {{-- Banner sudah berisi gambar & teks lengkap → full-width, tanpa overlay teks. --}}
-        <div class="relative left-1/2 -mt-8 w-screen -translate-x-1/2 bg-stone-950 lg:-mt-10">
-            <img src="{{ $site->hero_banner_url }}" alt="Banner {{ $site?->site_name ?? $event?->name }}" class="block h-auto w-full">
-        </div>
-    @else
-        <section class="relative left-1/2 -mt-8 w-screen -translate-x-1/2 overflow-hidden bg-[#7d0a12] text-white lg:-mt-10">
-            <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_15%_-10%,#c1121f_0%,#9a0e18_38%,#5f070d_100%)]"></div>
-            <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(244,185,66,0.35),transparent_60%)]"></div>
-            <div class="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.12),transparent_65%)]"></div>
-            <span class="pointer-events-none absolute -right-4 top-1/2 hidden -translate-y-1/2 select-none text-[16rem] font-black leading-none text-white/[0.06] sm:block lg:text-[22rem]">{{ $anniversary }}</span>
+    <div class="relative" data-merdeka-hero>
+        <canvas class="merdeka-celebration-layer" data-merdeka-celebration aria-hidden="true"></canvas>
 
-            <div class="relative mx-auto grid max-w-6xl gap-10 px-5 py-12 lg:grid-cols-[1.35fr_0.9fr] lg:items-center lg:px-8 lg:py-16">
-                <div>
-                    <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.15em] text-white backdrop-blur">
-                        <x-icon name="flag" class="h-4 w-4" /> Dirgahayu RI Ke-{{ $anniversary }}
-                    </span>
-                    <h1 class="mt-5 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-                        {{ $event?->name ?? 'Pesta Rakyat Kemerdekaan' }}
-                    </h1>
-                    <p class="mt-5 max-w-xl text-[15px] leading-7 text-red-50/90">
-                        {{ $event?->description ?? 'Panggung informasi warga untuk melihat susunan panitia, jenis lomba, jalannya babak, hingga arus dana secara terbuka.' }}
-                    </p>
+        @if ($site?->hero_banner_url)
+            <div class="relative z-[2] left-1/2 -mt-8 w-screen -translate-x-1/2 bg-stone-950 lg:-mt-10">
+                <img src="{{ $site->hero_banner_url }}" alt="Banner {{ $site?->site_name ?? $event?->name }}" class="block h-auto w-full">
+            </div>
+        @else
+            <section class="relative z-[2] left-1/2 -mt-8 w-screen -translate-x-1/2 overflow-hidden bg-[#7d0a12] text-white lg:-mt-10">
+                <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_15%_-10%,#c1121f_0%,#9a0e18_38%,#5f070d_100%)]"></div>
+                <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(244,185,66,0.35),transparent_60%)]"></div>
+                <div class="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.12),transparent_65%)]"></div>
+                <span class="pointer-events-none absolute -right-4 top-1/2 hidden -translate-y-1/2 select-none text-[16rem] font-black leading-none text-white/[0.06] sm:block lg:text-[22rem]">{{ $anniversary }}</span>
 
-                    <div class="mt-7 flex flex-wrap justify-center gap-3 md:justify-start">
-                        <a href="{{ route('public.family-form') }}" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
-                            <x-icon name="users" class="h-4 w-4" /> Isi Form Warga
-                        </a>
-                        <a href="{{ route('public.competitions') }}" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
-                            <x-icon name="trophy" class="h-4 w-4" /> Lihat Jenis Lomba
-                        </a>
-                        <a href="{{ route('public.committee') }}" class="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/5 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">
-                            Susunan Panitia
-                        </a>
+                <div class="relative mx-auto grid max-w-6xl gap-10 px-5 py-12 lg:grid-cols-[1.35fr_0.9fr] lg:items-center lg:px-8 lg:py-16">
+                    <div>
+                        <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.15em] text-white backdrop-blur">
+                            <x-icon name="flag" class="h-4 w-4" /> Dirgahayu RI Ke-{{ $anniversary }}
+                        </span>
+                        <h1 class="mt-5 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+                            {{ $event?->name ?? 'Pesta Rakyat Kemerdekaan' }}
+                        </h1>
+                        <p class="mt-5 max-w-xl text-[15px] leading-7 text-red-50/90">
+                            {{ $event?->description ?? 'Panggung informasi warga untuk melihat susunan panitia, jenis lomba, jalannya babak, hingga arus dana secara terbuka.' }}
+                        </p>
+
+                        <div class="mt-7 flex flex-wrap justify-center gap-3 md:justify-start">
+                            <a href="{{ route('public.family-form') }}" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
+                                <x-icon name="users" class="h-4 w-4" /> Isi Form Warga
+                            </a>
+                            <a href="{{ route('public.competitions') }}" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
+                                <x-icon name="trophy" class="h-4 w-4" /> Lihat Jenis Lomba
+                            </a>
+                            <a href="{{ route('public.committee') }}" class="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/5 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">
+                                Susunan Panitia
+                            </a>
+                        </div>
+
+                        @if ($event)
+                            <div class="mt-8 flex flex-wrap justify-center gap-x-10 gap-y-4 md:justify-start">
+                                <div class="flex flex-col items-center gap-1 text-center md:flex-row md:items-start md:gap-2.5 md:text-left">
+                                    <x-icon name="map-pin" class="mt-0.5 h-5 w-5 text-red-200" />
+                                    <div>
+                                        <p class="text-[11px] font-bold uppercase tracking-wide text-red-100/80">Lokasi</p>
+                                        <p class="text-sm font-semibold">{{ $event->location }}</p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col items-center gap-1 text-center md:flex-row md:items-start md:gap-2.5 md:text-left">
+                                    <x-icon name="calendar" class="mt-0.5 h-5 w-5 text-red-200" />
+                                    <div>
+                                        <p class="text-[11px] font-bold uppercase tracking-wide text-red-100/80">Jadwal</p>
+                                        <p class="text-sm font-semibold">{{ $event->schedule_label }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
-                    @if ($event)
-                        <div class="mt-8 flex flex-wrap justify-center gap-x-10 gap-y-4 md:justify-start">
-                            <div class="flex flex-col items-center gap-1 text-center md:flex-row md:items-start md:gap-2.5 md:text-left">
-                                <x-icon name="map-pin" class="mt-0.5 h-5 w-5 text-red-200" />
-                                <div>
-                                    <p class="text-[11px] font-bold uppercase tracking-wide text-red-100/80">Lokasi</p>
-                                    <p class="text-sm font-semibold">{{ $event->location }}</p>
-                                </div>
+                    <div class="rounded-2xl border border-white/15 bg-white/10 p-6 shadow-2xl shadow-black/30 backdrop-blur">
+                        @if ($isUpcoming)
+                            <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-amber-200"><x-icon name="clock" class="h-4 w-4" /> Hitung Mundur Menuju Hari-H</p>
+                            <div id="countdown" data-target="{{ $event->start_date->timestamp }}" class="mt-4 grid grid-cols-4 gap-2 text-center">
+                                @foreach (['days' => 'Hari', 'hours' => 'Jam', 'mins' => 'Menit', 'secs' => 'Detik'] as $key => $label)
+                                    <div class="rounded-xl bg-black/20 py-3">
+                                        <span data-cd="{{ $key }}" class="block text-2xl font-black tabular-nums sm:text-3xl">00</span>
+                                        <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-red-100/80">{{ $label }}</span>
+                                    </div>
+                                @endforeach
                             </div>
-                            <div class="flex flex-col items-center gap-1 text-center md:flex-row md:items-start md:gap-2.5 md:text-left">
-                                <x-icon name="calendar" class="mt-0.5 h-5 w-5 text-red-200" />
-                                <div>
-                                    <p class="text-[11px] font-bold uppercase tracking-wide text-red-100/80">Jadwal</p>
-                                    <p class="text-sm font-semibold">{{ $event->schedule_label }}</p>
-                                </div>
+                            <div class="mt-5 space-y-2 border-t border-white/15 pt-4 text-sm">
+                                <p class="flex items-center justify-between"><span class="text-red-100/80">Dana tersedia</span><span class="font-black">Rp{{ number_format($balance, 0, ',', '.') }}</span></p>
+                                <a href="{{ route('public.finance') }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-200 hover:text-amber-100">Lihat transparansi dana <x-icon name="arrow-right" class="h-4 w-4" /></a>
                             </div>
-                        </div>
-                    @endif
+                        @else
+                            <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-amber-200"><x-icon name="sparkles" class="h-4 w-4" /> Rangkaian Acara</p>
+                            <p class="mt-3 text-2xl font-black">Sampai jumpa di kegiatan warga!</p>
+                            <div class="mt-5 space-y-2 border-t border-white/15 pt-4 text-sm">
+                                <p class="flex items-center justify-between"><span class="text-red-100/80">Dana tersedia</span><span class="font-black">Rp{{ number_format($balance, 0, ',', '.') }}</span></p>
+                                <a href="{{ route('public.finance') }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-200 hover:text-amber-100">Lihat transparansi dana <x-icon name="arrow-right" class="h-4 w-4" /></a>
+                            </div>
+                        @endif
+                    </div>
                 </div>
+            </section>
 
-                {{-- Countdown / info card --}}
-                <div class="rounded-2xl border border-white/15 bg-white/10 p-6 shadow-2xl shadow-black/30 backdrop-blur">
-                    @if ($isUpcoming)
-                        <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-amber-200"><x-icon name="clock" class="h-4 w-4" /> Hitung Mundur Menuju Hari-H</p>
-                        <div id="countdown" data-target="{{ $event->start_date->timestamp }}" class="mt-4 grid grid-cols-4 gap-2 text-center">
-                            @foreach (['days' => 'Hari', 'hours' => 'Jam', 'mins' => 'Menit', 'secs' => 'Detik'] as $key => $label)
-                                <div class="rounded-xl bg-black/20 py-3">
-                                    <span data-cd="{{ $key }}" class="block text-2xl font-black tabular-nums sm:text-3xl">00</span>
-                                    <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-red-100/80">{{ $label }}</span>
-                                </div>
-                            @endforeach
-                        </div>
-                        <div class="mt-5 space-y-2 border-t border-white/15 pt-4 text-sm">
-                            <p class="flex items-center justify-between"><span class="text-red-100/80">Dana tersedia</span><span class="font-black">Rp{{ number_format($balance, 0, ',', '.') }}</span></p>
-                            <a href="{{ route('public.finance') }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-200 hover:text-amber-100">Lihat transparansi dana <x-icon name="arrow-right" class="h-4 w-4" /></a>
-                        </div>
-                    @else
-                        <p class="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-amber-200"><x-icon name="sparkles" class="h-4 w-4" /> Rangkaian Acara</p>
-                        <p class="mt-3 text-2xl font-black">Sampai jumpa di kegiatan warga!</p>
-                        <div class="mt-5 space-y-2 border-t border-white/15 pt-4 text-sm">
-                            <p class="flex items-center justify-between"><span class="text-red-100/80">Dana tersedia</span><span class="font-black">Rp{{ number_format($balance, 0, ',', '.') }}</span></p>
-                            <a href="{{ route('public.finance') }}" class="inline-flex items-center gap-1 text-sm font-semibold text-amber-200 hover:text-amber-100">Lihat transparansi dana <x-icon name="arrow-right" class="h-4 w-4" /></a>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </section>
+            <script>
+                (function () {
+                    var el = document.getElementById('countdown');
+                    if (!el) return;
+                    var target = parseInt(el.dataset.target, 10) * 1000;
+                    var pad = function (n) { return String(n).padStart(2, '0'); };
+                    var set = function (k, v) { var s = el.querySelector('[data-cd=' + k + ']'); if (s) s.textContent = pad(v); };
+                    function tick() {
+                        var d = target - Date.now();
+                        if (d < 0) d = 0;
+                        set('days', Math.floor(d / 86400000));
+                        set('hours', Math.floor((d % 86400000) / 3600000));
+                        set('mins', Math.floor((d % 3600000) / 60000));
+                        set('secs', Math.floor((d % 60000) / 1000));
+                    }
+                    tick();
+                    setInterval(tick, 1000);
+                })();
+            </script>
+        @endif
+    </div>
 
-        <script>
-            (function () {
-                var el = document.getElementById('countdown');
-                if (!el) return;
-                var target = parseInt(el.dataset.target, 10) * 1000;
-                var pad = function (n) { return String(n).padStart(2, '0'); };
-                var set = function (k, v) { var s = el.querySelector('[data-cd=' + k + ']'); if (s) s.textContent = pad(v); };
-                function tick() {
-                    var d = target - Date.now();
-                    if (d < 0) d = 0;
-                    set('days', Math.floor(d / 86400000));
-                    set('hours', Math.floor((d % 86400000) / 3600000));
-                    set('mins', Math.floor((d % 3600000) / 60000));
-                    set('secs', Math.floor((d % 60000) / 1000));
-                }
-                tick();
-                setInterval(tick, 1000);
-            })();
-        </script>
-    @endif
-
-    {{-- ============================ STATS ============================ --}}
     @php
         $stats = [
             ['route' => 'public.committee', 'icon' => 'users', 'grad' => 'from-red-500 to-red-700', 'shadow' => 'shadow-red-600/25', 'value' => $committeeCount, 'label' => 'Panitia & tim pelaksana'],
@@ -135,7 +135,6 @@
         @endforeach
     </section>
 
-    {{-- ============================ LOMBA ============================ --}}
     <section class="mt-10">
         <div class="flex flex-col items-center gap-2 text-center md:flex-row md:items-end md:justify-between md:gap-3 md:text-left">
             <div class="flex items-center gap-3">
@@ -167,7 +166,6 @@
         </div>
     </section>
 
-    {{-- ============================ JUARA TERKINI ============================ --}}
     @if ($winners->isNotEmpty())
         @php
             $rankStyle = [
