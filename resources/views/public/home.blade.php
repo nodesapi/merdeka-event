@@ -24,7 +24,7 @@
                             <x-icon name="flag" class="h-4 w-4" /> Dirgahayu RI Ke-{{ $anniversary }}
                         </span>
                         <h1 class="mt-5 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-                            {{ $event?->name ?? 'Pesta Rakyat Kemerdekaan' }}
+                            {{ $site?->site_name ?: ($event?->name ?? 'Pesta Rakyat Kemerdekaan') }}
                         </h1>
                         <p class="mt-5 max-w-xl text-[15px] leading-7 text-red-50/90">
                             {{ $event?->description ?? 'Panggung informasi warga untuk melihat susunan panitia, jenis lomba, jalannya babak, hingga arus dana secara terbuka.' }}
