@@ -712,6 +712,7 @@ const initHomeCelebration = () => {
     const fadeAfter = 3600;
     const isCompact = window.innerWidth < 768;
     let rafId = 0;
+    let lastFirework = 0;
 
     const resize = () => {
         const rect = hero.getBoundingClientRect();
@@ -792,21 +793,28 @@ const initHomeCelebration = () => {
     };
 
     const update = (now) => {
-        const elapsed = now - startedAt;
+        if (document.hidden) { rafId = window.requestAnimationFrame(update); return; }
+
         const width = canvas.width / dpr;
         const height = canvas.height / dpr;
-        const fadeMultiplier = elapsed > fadeAfter ? Math.max(0, 1 - (elapsed - fadeAfter) / (stopAfter - fadeAfter)) : 1;
+        const fadeMultiplier = 1;
 
         ctx.clearRect(0, 0, width, height);
 
-        if (elapsed < 2800 && Math.random() < (isCompact ? 0.04 : 0.06)) {
+        // Konfeti turun terus-menerus (ambient)
+        if (Math.random() < (isCompact ? 0.05 : 0.08)) {
             sprinkleConfetti();
         }
 
-        if (elapsed > 1200 && elapsed < 3200 && Math.random() < (isCompact ? 0.022 : 0.03)) {
-            const x = random(width * 0.2, width * 0.8);
-            const y = random(height * 0.1, height * 0.28);
-            burst(x, y, isCompact ? 10 : 14, isCompact ? 8 : 10, 'spark');
+        // Percikan kecil sesekali
+        if (Math.random() < (isCompact ? 0.02 : 0.03)) {
+            burst(random(width * 0.2, width * 0.8), random(height * 0.1, height * 0.3), isCompact ? 8 : 12, isCompact ? 8 : 10, 'spark');
+        }
+
+        // Kembang api berkala
+        if (now - lastFirework > (isCompact ? 3200 : 2500)) {
+            lastFirework = now;
+            launchBurstGroup();
         }
 
         sparks.forEach((spark, index) => {
@@ -854,14 +862,14 @@ const initHomeCelebration = () => {
             }
         });
 
-        if (elapsed < stopAfter || sparks.length || streamers.length) {
-            rafId = window.requestAnimationFrame(update);
-            return;
-        }
+        rafId = window.requestAnimationFrame(update);
+    };
 
-        canvas.style.transition = 'opacity 500ms ease';
-        canvas.style.opacity = '0';
-        window.setTimeout(() => canvas.remove(), 550);
+    // Trigger burst meriah (dipanggil saat pengunjung klik "Masuk" di modal welcome)
+    window.merdekaCelebrate = () => {
+        sprinkleConfetti(true);
+        launchBurstGroup();
+        lastFirework = performance.now();
     };
 
     resize();

@@ -470,10 +470,12 @@
 
     .merdeka-celebration-layer {
         position: absolute;
-        inset: -1.25rem 0 auto;
+        top: -1.25rem;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 4;
         pointer-events: none;
-        opacity: 0.9;
+        opacity: 0.95;
     }
 
     .family-form-shell {

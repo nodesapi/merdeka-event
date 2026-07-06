@@ -265,7 +265,7 @@
                     if (tracks.length && sessionStorage.getItem(K_PAUSED) !== '1') play(); // lanjut musik antar halaman
                 }
 
-                if (enterBtn) enterBtn.addEventListener('click', function () { sessionStorage.setItem(K_WELCOME, '1'); closeModal(); playFromGesture(); });
+                if (enterBtn) enterBtn.addEventListener('click', function () { sessionStorage.setItem(K_WELCOME, '1'); closeModal(); playFromGesture(); if (window.merdekaCelebrate) window.merdekaCelebrate(); });
                 document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && modal && modal.style.display === 'flex') { sessionStorage.setItem(K_WELCOME, '1'); closeModal(); } });
                 reflect();
             })();
