@@ -52,16 +52,12 @@
 
     <header class="sticky top-0 z-30 border-b border-stone-200/70 bg-white/90 backdrop-blur">
         <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5 lg:px-8">
-            <a href="{{ route('public.home') }}" class="flex min-w-0 items-center gap-3">
+            <a href="{{ route('public.home') }}" class="flex min-w-0 items-center">
                 @if ($site?->logo_url)
-                    <img src="{{ $site->logo_url }}" alt="Logo" class="h-14 w-auto max-w-[180px] shrink-0 object-contain">
+                    <img src="{{ $site->logo_url }}" alt="Logo" class="h-16 w-auto max-w-[240px] shrink-0 object-contain sm:h-20 sm:max-w-[300px]">
                 @else
-                    <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-red-700 text-2xl font-black text-white">{{ strtoupper(substr($siteName, 0, 1)) }}</span>
+                    <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-red-700 text-3xl font-black text-white sm:h-20 sm:w-20">{{ strtoupper(substr($siteName, 0, 1)) }}</span>
                 @endif
-                <span class="min-w-0">
-                    <span class="block truncate text-[15px] font-extrabold tracking-tight text-stone-900">{{ $siteName }}</span>
-                    <span class="block truncate text-[11px] font-semibold uppercase tracking-wide text-red-700">{{ $tagline }}</span>
-                </span>
             </a>
 
             <div class="flex items-center gap-1.5">

@@ -450,10 +450,9 @@
     .merdeka-celebration-layer {
         position: absolute;
         inset: -1.25rem 0 auto;
-        z-index: 1;
+        z-index: 4;
         pointer-events: none;
-        opacity: 0.78;
-        mix-blend-mode: screen;
+        opacity: 0.9;
     }
 
     @media (max-width: 640px) {

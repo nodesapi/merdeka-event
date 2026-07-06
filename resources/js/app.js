@@ -820,6 +820,8 @@ const initHomeCelebration = () => {
             ctx.save();
             ctx.globalAlpha = spark.alpha;
             ctx.fillStyle = spark.color;
+            ctx.shadowBlur = 16;
+            ctx.shadowColor = spark.color;
             ctx.beginPath();
             ctx.arc(spark.x, spark.y, size, 0, Math.PI * 2);
             ctx.fill();
@@ -842,6 +844,8 @@ const initHomeCelebration = () => {
             ctx.rotate(piece.rotation);
             ctx.globalAlpha = piece.alpha;
             ctx.fillStyle = piece.color;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = piece.color;
             ctx.fillRect(-piece.size / 2, -piece.size / 2, piece.size, piece.size * 0.55);
             ctx.restore();
 
