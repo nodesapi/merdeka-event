@@ -1,7 +1,10 @@
 <?php
 
+use App\Models\MusicTrack;
 use App\Models\SiteSetting;
 use App\Support\ImageConverter;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
@@ -19,6 +22,12 @@ new class extends Component
     public $bank_account_number = '';
     public $bank_account_holder = '';
     public $google_site_verification = '';
+    public $terms_conditions = '';
+
+    public bool $welcome_enabled = true;
+    public $welcome_title = '';
+    public $welcome_message = '';
+    public $music_files = [];
 
     public $logo;
     public $favicon;
@@ -45,6 +54,10 @@ new class extends Component
         $this->bank_account_number = $setting->bank_account_number;
         $this->bank_account_holder = $setting->bank_account_holder;
         $this->google_site_verification = $setting->google_site_verification ?? '';
+        $this->terms_conditions = $setting->terms_conditions ?? '';
+        $this->welcome_enabled = (bool) ($setting->welcome_enabled ?? true);
+        $this->welcome_title = $setting->welcome_title ?? '';
+        $this->welcome_message = $setting->welcome_message ?? '';
         $this->logo_path = $setting->logo_path;
         $this->favicon_path = $setting->favicon_path;
         $this->hero_banner_path = $setting->hero_banner_path;
@@ -62,6 +75,10 @@ new class extends Component
             'bank_account_number' => 'nullable|string|max:60',
             'bank_account_holder' => 'nullable|string|max:255',
             'google_site_verification' => 'nullable|string|max:255',
+            'terms_conditions' => 'nullable|string|max:20000',
+            'welcome_enabled' => 'boolean',
+            'welcome_title' => 'nullable|string|max:120',
+            'welcome_message' => 'nullable|string|max:1000',
             'logo' => 'nullable|image|max:4096',
             'favicon' => 'nullable|max:1024|mimes:png,ico,svg,jpg,jpeg',
             'hero_banner' => 'nullable|image|max:8192',
@@ -79,6 +96,10 @@ new class extends Component
             'bank_account_number' => $this->bank_account_number,
             'bank_account_holder' => $this->bank_account_holder,
             'google_site_verification' => trim((string) $this->google_site_verification) ?: null,
+            'terms_conditions' => trim((string) $this->terms_conditions) ?: null,
+            'welcome_enabled' => $this->welcome_enabled,
+            'welcome_title' => trim((string) $this->welcome_title) ?: null,
+            'welcome_message' => trim((string) $this->welcome_message) ?: null,
         ];
 
         if ($this->logo) {
@@ -122,6 +143,41 @@ new class extends Component
         $this->success_message = 'Gambar dihapus.';
     }
 
+    public function uploadMusic(): void
+    {
+        $this->validate([
+            'music_files' => 'required|array|max:20',
+            'music_files.*' => 'file|mimes:mp3,ogg,wav,m4a,aac|max:12288',
+        ], [
+            'music_files.*.mimes' => 'Format musik harus mp3, ogg, wav, m4a, atau aac.',
+            'music_files.*.max' => 'Ukuran tiap file musik maksimal 12MB.',
+        ]);
+
+        $order = (int) MusicTrack::max('sort_order');
+
+        foreach ($this->music_files as $file) {
+            $title = Str::limit(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME), 120, '');
+            MusicTrack::create([
+                'title' => $title ?: 'Lagu',
+                'path' => $file->store('music', 'public'),
+                'sort_order' => ++$order,
+            ]);
+        }
+
+        $this->reset('music_files');
+        $this->success_message = 'Musik berhasil diunggah.';
+    }
+
+    public function deleteMusic(string $id): void
+    {
+        $track = MusicTrack::find($id);
+        if ($track) {
+            Storage::disk('public')->delete($track->path);
+            $track->delete();
+        }
+        $this->success_message = 'Musik dihapus.';
+    }
+
     public function dismissAlert()
     {
         $this->success_message = '';
@@ -134,6 +190,7 @@ new class extends Component
             'faviconUrl' => $this->favicon_path ? '/storage/' . ltrim($this->favicon_path, '/') : null,
             'bannerUrl' => $this->hero_banner_path ? '/storage/' . ltrim($this->hero_banner_path, '/') : null,
             'ogImageUrl' => $this->og_image_path ? '/storage/' . ltrim($this->og_image_path, '/') : null,
+            'tracks' => MusicTrack::orderBy('sort_order')->get(),
         ];
     }
 };
@@ -282,6 +339,71 @@ new class extends Component
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Atas Nama</label>
                     <input type="text" wire:model="bank_account_holder" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Panitia RT 07">
                     @error('bank_account_holder') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <h3 class="mb-4 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
+                <span class="h-4 w-2 rounded bg-red-600"></span> Syarat &amp; Ketentuan
+            </h3>
+            <label class="mb-1 block text-xs font-semibold text-slate-600">Isi Syarat &amp; Ketentuan</label>
+            <textarea wire:model="terms_conditions" rows="10" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm leading-6 focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Tulis syarat & ketentuan di sini. Setiap baris baru akan tampil sebagai baris terpisah di halaman publik."></textarea>
+            <p class="mt-1.5 text-xs text-slate-400">Tampil di halaman <span class="font-mono text-slate-500">/syarat-ketentuan</span> yang di-link dari Form Warga. Dikosongkan = memakai teks contoh (dummy) bawaan.</p>
+            @error('terms_conditions') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
+                <span class="h-4 w-2 rounded bg-red-600"></span> Modal Welcome &amp; Musik
+            </h3>
+
+            <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model="welcome_enabled" class="mt-0.5 h-5 w-5 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                <span class="text-sm text-slate-700">Tampilkan <b>modal welcome</b> di halaman warga. Saat pengunjung klik "Masuk", musik diputar otomatis &amp; berulang (looping).</span>
+            </label>
+
+            <div class="mt-5 grid gap-4 md:grid-cols-2">
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Judul Welcome</label>
+                    <input type="text" wire:model="welcome_title" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Selamat Datang">
+                    @error('welcome_title') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Pesan Welcome</label>
+                    <textarea wire:model="welcome_message" rows="3" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Selamat datang di portal warga..."></textarea>
+                    @error('welcome_message') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+            </div>
+
+            <div class="mt-6 border-t border-slate-100 pt-5">
+                <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Daftar Lagu (diputar berurutan &amp; looping)</p>
+
+                <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
+                    <input type="file" wire:model="music_files" multiple accept="audio/*,.mp3,.ogg,.wav,.m4a" class="w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                    <div wire:loading wire:target="music_files" class="mt-1 text-xs text-slate-400">Memproses file…</div>
+                    @error('music_files.*') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                    <div class="mt-3 flex items-center justify-between gap-3">
+                        <p class="text-xs text-slate-400">Format mp3/ogg/wav/m4a, maks 12MB/lagu. Bisa pilih beberapa sekaligus.</p>
+                        <button type="button" wire:click="uploadMusic" wire:loading.attr="disabled" wire:target="uploadMusic,music_files" class="shrink-0 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">Unggah</button>
+                    </div>
+                </div>
+
+                <div class="mt-4 divide-y divide-slate-100">
+                    @forelse ($tracks as $i => $track)
+                        <div class="flex items-center justify-between gap-3 py-2.5">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-50 text-xs font-bold text-red-700">{{ $i + 1 }}</span>
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-medium text-slate-800">{{ $track->title }}</p>
+                                    <audio controls preload="none" src="{{ $track->url }}" class="mt-1 h-8 w-56 max-w-full"></audio>
+                                </div>
+                            </div>
+                            <button type="button" wire:click="deleteMusic('{{ $track->id }}')" wire:confirm="Hapus lagu ini?" class="shrink-0 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Hapus</button>
+                        </div>
+                    @empty
+                        <p class="py-4 text-center text-sm text-slate-400">Belum ada lagu. Unggah lagu kemerdekaan (mis. Indonesia Raya) di atas.</p>
+                    @endforelse
                 </div>
             </div>
         </div>

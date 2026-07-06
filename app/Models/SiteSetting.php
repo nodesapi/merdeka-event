@@ -19,10 +19,53 @@ use Illuminate\Database\Eloquent\Model;
     'bank_name',
     'bank_account_number',
     'bank_account_holder',
+    'terms_conditions',
+    'welcome_enabled',
+    'welcome_title',
+    'welcome_message',
 ])]
 class SiteSetting extends Model
 {
     use HasUuidV7;
+
+    protected function casts(): array
+    {
+        return [
+            'welcome_enabled' => 'boolean',
+        ];
+    }
+
+    public function getWelcomeTitleTextAttribute(): string
+    {
+        return trim((string) $this->welcome_title) !== ''
+            ? $this->welcome_title
+            : 'Selamat Datang';
+    }
+
+    public function getWelcomeMessageTextAttribute(): string
+    {
+        return trim((string) $this->welcome_message) !== ''
+            ? $this->welcome_message
+            : 'Selamat datang di portal warga. Klik tombol di bawah untuk masuk dan nikmati suasana kemerdekaan dengan iringan lagu perjuangan.';
+    }
+
+    /** Isi Syarat & Ketentuan default (dummy) bila admin belum mengisi. */
+    public const DEFAULT_TERMS = <<<'TXT'
+1. Data yang diisi pada form ini digunakan panitia hanya untuk keperluan pendataan warga dan kegiatan kemerdekaan.
+2. Kontribusi (iuran, tambahan sukarela, donasi, maupun sponsor) bersifat sukarela dan tidak mengikat.
+3. Seluruh dana yang masuk akan dikelola secara transparan oleh panitia dan dilaporkan melalui halaman transparansi dana.
+4. Bukti pembayaran yang diunggah wajib benar dan dapat dipertanggungjawabkan.
+5. Dengan mengirimkan form ini, warga menyatakan data yang diisi adalah benar dan menyetujui pengelolaan data oleh panitia.
+
+*Syarat & ketentuan ini masih contoh (dummy) dan dapat diubah panitia melalui menu Pengaturan Website.
+TXT;
+
+    public function getTermsConditionsTextAttribute(): string
+    {
+        return trim((string) $this->terms_conditions) !== ''
+            ? $this->terms_conditions
+            : self::DEFAULT_TERMS;
+    }
 
     protected static ?self $cached = null;
 

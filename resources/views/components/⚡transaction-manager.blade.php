@@ -7,6 +7,7 @@ use Livewire\Component;
 new class extends Component
 {
     public string $type = 'income';
+    public string $category = '';
     public $amount = '';
     public string $description = '';
     public string $resident_block = '';
@@ -18,10 +19,14 @@ new class extends Component
 
     public string $success_message = '';
 
+    /** Kategori pemasukan yang bisa diinput admin (mis. Tambahan Sukarela, Donasi, Sponsor). */
+    public array $categories = ['Iuran Warga', 'Tambahan Sukarela', 'Donasi', 'Sponsor', 'Lainnya'];
+
     public function save(): void
     {
         $data = $this->validate([
             'type' => 'required|in:income,expense',
+            'category' => 'nullable|string|max:50',
             'amount' => 'required|numeric|min:1',
             'description' => 'required|string|max:1000',
             'resident_block' => 'nullable|string|max:50',
@@ -33,6 +38,11 @@ new class extends Component
             ? User::where('resident_block', 'like', '%' . $this->resident_block . '%')->first()
             : null;
 
+        // Gabungkan kategori ke keterangan agar tampil di daftar & ekspor.
+        $description = $this->category !== ''
+            ? $this->category . ' — ' . $data['description']
+            : $data['description'];
+
         Transaction::create([
             'user_id' => $user?->id,
             'amount' => $data['amount'],
@@ -40,14 +50,14 @@ new class extends Component
             'bank_name' => $data['bank_name'] ?: null,
             'account_number' => $data['account_number'] ?: null,
             'resident_block' => $data['resident_block'] ?: null,
-            'description' => $data['description'],
+            'description' => $description,
             'status' => 'approved',
         ]);
 
         $label = $this->type === 'expense' ? 'Pengeluaran' : 'Pemasukan';
         $this->success_message = $label . ' sebesar Rp' . number_format((float) $this->amount, 0, ',', '.') . ' berhasil dicatat.';
 
-        $this->reset(['amount', 'description', 'resident_block', 'bank_name', 'account_number']);
+        $this->reset(['category', 'amount', 'description', 'resident_block', 'bank_name', 'account_number']);
         $this->type = 'income';
     }
 
@@ -144,6 +154,18 @@ new class extends Component
                         </label>
                     </div>
                 </div>
+                @if ($type === 'income')
+                    <div>
+                        <label class="mb-1.5 block text-xs font-semibold text-slate-600">Kategori <span class="font-normal text-slate-400">(opsional)</span></label>
+                        <select wire:model="category" class="w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100">
+                            <option value="">Umum / tanpa kategori</option>
+                            @foreach ($categories as $cat)
+                                <option value="{{ $cat }}">{{ $cat }}</option>
+                            @endforeach
+                        </select>
+                        <p class="mt-1 text-xs text-slate-400">Untuk mencatat Iuran, Tambahan Sukarela, Donasi, atau Sponsor.</p>
+                    </div>
+                @endif
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-slate-600">Nominal (Rp)</label>
                     <div class="relative" data-rupiah-input>

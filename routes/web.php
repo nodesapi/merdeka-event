@@ -19,6 +19,7 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/transparansi', 'finance')->name('public.finance');
     Route::get('/form-warga', 'familyForm')->name('public.family-form');
     Route::post('/form-warga', 'storeFamilyForm')->name('public.family-form.store');
+    Route::get('/syarat-ketentuan', 'terms')->name('public.terms');
 });
 
 /*

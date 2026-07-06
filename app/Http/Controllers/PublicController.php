@@ -155,6 +155,13 @@ class PublicController extends Controller
         ]);
     }
 
+    public function terms(): View
+    {
+        return view('public.terms', [
+            'event' => $this->activeEvent(),
+        ]);
+    }
+
     public function storeFamilyForm(Request $request): RedirectResponse
     {
         $event = $this->activeEvent();
@@ -190,6 +197,7 @@ class PublicController extends Controller
             'contribution_sponsor_amount' => ['nullable', 'numeric', 'min:0'],
             'contribution_sponsor_label' => ['nullable', 'string', 'max:255'],
             'contribution_sponsor_note' => ['nullable', 'string', 'max:500'],
+            'terms' => ['accepted'],
             'members' => ['required', 'array', 'min:1'],
             'members.*.name' => ['required', 'string', 'max:255'],
             'members.*.relationship' => ['required', 'in:ayah,ibu,anak,lainnya'],
@@ -197,6 +205,8 @@ class PublicController extends Controller
             'members.*.gender' => ['nullable', 'in:L,P'],
             'members.*.competition_id' => ['nullable', 'uuid'],
             'members.*.notes' => ['nullable', 'string', 'max:500'],
+        ], [
+            'terms.accepted' => 'Anda harus menyetujui Syarat & Ketentuan terlebih dahulu.',
         ]);
 
         $publishedCompetitions = $event->competitions()

@@ -16,14 +16,27 @@
                 <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_15%_-10%,#c1121f_0%,#9a0e18_38%,#5f070d_100%)]"></div>
                 <div class="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-[radial-gradient(circle,rgba(244,185,66,0.35),transparent_60%)]"></div>
                 <div class="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.12),transparent_65%)]"></div>
-                <span class="pointer-events-none absolute -right-4 top-1/2 hidden -translate-y-1/2 select-none text-[16rem] font-black leading-none text-white/[0.06] sm:block lg:text-[22rem]">{{ $anniversary }}</span>
+
+                {{-- Ornamen: logo HUT RI di belakang judul --}}
+                <img src="/banner/logo_hut_ri_81.webp" alt="" aria-hidden="true" class="pointer-events-none absolute left-2 top-1/2 hidden w-36 -translate-y-1/2 select-none opacity-20 sm:block lg:left-8 lg:w-56">
+                {{-- Ornamen: Garuda Pancasila samar, agak ke tengah (boleh sedikit di belakang kartu hitung mundur) --}}
+                <img src="/banner/logo_garuda_indonesia.webp" alt="" aria-hidden="true" class="pointer-events-none absolute right-4 top-1/2 hidden w-40 -translate-y-1/2 select-none opacity-[0.12] sm:block lg:right-24 lg:w-60">
+
+                {{-- Ornamen: bunting bendera merah-putih-emas di atas --}}
+                <svg class="pointer-events-none absolute inset-x-0 top-0 h-8 w-full select-none" aria-hidden="true">
+                    <defs>
+                        <pattern id="merdeka-bunting" width="44" height="32" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="2" x2="44" y2="2" stroke="rgba(255,255,255,.4)" stroke-width="1.5" />
+                            <polygon points="5,2 21,2 13,23" fill="#ffffff" opacity="0.92" />
+                            <polygon points="23,2 39,2 31,23" fill="#f4b942" opacity="0.92" />
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="32" fill="url(#merdeka-bunting)" />
+                </svg>
 
                 <div class="relative mx-auto grid max-w-6xl gap-10 px-5 py-12 lg:grid-cols-[1.35fr_0.9fr] lg:items-center lg:px-8 lg:py-16">
                     <div>
-                        <span class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.15em] text-white backdrop-blur">
-                            <x-icon name="flag" class="h-4 w-4" /> Dirgahayu RI Ke-{{ $anniversary }}
-                        </span>
-                        <h1 class="mt-5 text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+                        <h1 class="text-4xl font-black leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
                             {{ $site?->site_name ?: ($event?->name ?? 'Pesta Rakyat Kemerdekaan') }}
                         </h1>
                         <p class="mt-5 max-w-xl text-[15px] leading-7 text-red-50/90">
