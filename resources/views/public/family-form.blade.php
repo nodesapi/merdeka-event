@@ -119,7 +119,7 @@
                                 <input type="hidden" name="contribution_iuran_amount" value="{{ $iuranAmount }}" data-rupiah-hidden>
                             </div>
                         </div>
-                        <input type="text" name="contribution_iuran_note" value="{{ old('contribution_iuran_note') }}" class="mt-3 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Contoh: Iuran keluarga bulan Agustus">
+                        <input type="text" name="contribution_iuran_note" value="{{ old('contribution_iuran_note') }}" class="mt-3 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Contoh: Iuran acara 17-an a/n Budi Santoso">
                     </div>
 
                     <div class="rounded-2xl border border-stone-200 bg-gradient-to-br from-white to-stone-50 p-4 shadow-sm">
@@ -340,8 +340,8 @@
                 </template>
             </section>
 
-            <div class="flex justify-end">
-                <button type="submit" class="rounded-xl bg-red-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-800">
+            <div class="sm:flex sm:justify-end">
+                <button type="submit" class="w-full rounded-xl bg-red-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-800 sm:w-auto">
                     Kirim Form Keluarga
                 </button>
             </div>
