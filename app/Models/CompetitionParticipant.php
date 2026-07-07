@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\AgeCategory;
 use App\Traits\HasUuidV7;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'name',
     'resident_block',
     'phone_number',
+    'age',
     'round',
     'status',
     'rank',
@@ -31,5 +33,15 @@ class CompetitionParticipant extends Model
     public function familyMember(): BelongsTo
     {
         return $this->belongsTo(FamilyMember::class);
+    }
+
+    public function getAgeCategoryKeyAttribute(): ?string
+    {
+        return AgeCategory::keyFor($this->age !== null ? (int) $this->age : null);
+    }
+
+    public function getAgeCategoryLabelAttribute(): string
+    {
+        return AgeCategory::labelFor($this->age !== null ? (int) $this->age : null);
     }
 }

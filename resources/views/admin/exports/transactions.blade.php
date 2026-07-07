@@ -13,10 +13,10 @@
         h1 { font-size: 20px; margin: 0; }
         .muted { color: #64748b; }
         .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #c1121f; padding-bottom: 14px; margin-bottom: 18px; }
-        .summary { display: flex; gap: 24px; margin-bottom: 18px; }
-        .summary div { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 16px; }
-        .summary .label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
-        .summary .value { font-size: 16px; font-weight: 700; }
+        .summary { display: flex; gap: 16px; margin-bottom: 18px; }
+        .summary > div { flex: 1 1 0; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 12px 16px; }
+        .summary .label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: #64748b; margin-bottom: 5px; }
+        .summary .value { font-size: 18px; font-weight: 700; }
         table { width: 100%; border-collapse: collapse; }
         th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
         th { background: #f1f5f9; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #475569; }

@@ -1,14 +1,32 @@
 <x-layouts.public title="Form Warga" :eventName="$event?->name">
     <div class="family-form-shell relative w-full min-w-0 max-w-full overflow-x-clip">
         <span class="merdeka-badge">Form Warga</span>
-        <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-stone-900">Form Kontribusi & Pendaftaran Keluarga</h1>
-        <p class="mt-1.5 max-w-3xl text-sm leading-6 text-stone-500">Warga dapat mengisi data keluarga, kontribusi iuran atau donasi, sekaligus mendaftarkan anak yang ingin ikut lomba agar panitia menerima data dengan rapi.</p>
+        <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-stone-900">Form Pendataan Keluarga & Iuran</h1>
+        <p class="mt-1.5 max-w-3xl text-sm leading-6 text-stone-500">Isi data keluarga dan iuran warga. Setiap anggota keluarga akan mendapat <span class="font-semibold text-stone-700">No Daftar</span> yang dipakai untuk daftar lomba, undian doorprize, dan registrasi ulang saat hari acara.</p>
     </div>
 
     @if (session('success_message'))
         <div class="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800 shadow-sm">
             <p class="text-sm font-semibold">{{ session('success_message') }}</p>
             <p class="mt-1 text-sm">Nomor referensi keluarga: <span class="font-bold">{{ session('reference_code') }}</span></p>
+
+            @if (session('registered_members'))
+                <div class="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+                    <p class="text-xs font-bold uppercase tracking-wide text-emerald-700">No Daftar Anggota Keluarga</p>
+                    <p class="mt-1 text-xs text-stone-500">Catat/simpan nomor ini. Dipakai untuk daftar lomba &amp; registrasi ulang hari-H.</p>
+                    <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                        @foreach (session('registered_members') as $rm)
+                            <div class="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
+                                <span class="min-w-0 flex-1 truncate text-sm font-semibold text-stone-800">{{ $rm['name'] }} <span class="text-xs font-normal capitalize text-stone-400">· {{ $rm['relationship'] }}</span></span>
+                                <span class="shrink-0 rounded-md bg-red-700 px-2.5 py-1 font-mono text-sm font-bold tracking-wider text-white">{{ $rm['registration_number'] }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                    <a href="{{ route('public.lomba-register') }}" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800">
+                        <x-icon name="trophy" class="h-4 w-4" /> Lanjut Daftar Lomba
+                    </a>
+                </div>
+            @endif
         </div>
     @endif
 
@@ -18,7 +36,7 @@
         </div>
     @else
         <section class="mt-6 grid w-full min-w-0 max-w-full gap-4 overflow-x-hidden lg:grid-cols-3">
-            <div class="merdeka-card min-w-0 overflow-hidden p-5 lg:col-span-2">
+            <div class="merdeka-card hidden min-w-0 overflow-hidden p-5 lg:col-span-2 lg:block">
                 <p class="text-xs font-bold uppercase tracking-wide text-red-700">Acara Aktif</p>
                 <h2 class="mt-2 break-words text-xl font-black text-stone-900">{{ $event->name }}</h2>
                 <div class="mt-4 min-w-0 rounded-xl bg-stone-50 p-4">
@@ -36,12 +54,12 @@
         <form method="POST" action="{{ route('public.family-form.store') }}" enctype="multipart/form-data" class="mt-6 w-full min-w-0 max-w-full space-y-6 overflow-x-clip text-left">
             @csrf
 
-            <section class="merdeka-card overflow-hidden p-5 sm:p-6">
+            <section class="merdeka-card overflow-x-clip p-5 sm:p-6" data-family-form>
                 <div class="flex items-center gap-3">
                     <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
                     <div>
                         <h2 class="text-lg font-black text-stone-900">1. Data Keluarga</h2>
-                        <p class="text-sm text-stone-500">Isi data kepala keluarga sebagai kontak utama panitia.</p>
+                        <p class="text-sm text-stone-500">Kepala keluarga jadi kontak utama sekaligus anggota #1 dan ikut mendapat No Daftar.</p>
                     </div>
                 </div>
 
@@ -66,14 +84,131 @@
                         <input type="email" name="email" value="{{ old('email') }}" class="mt-2 w-full rounded-xl border border-stone-300 px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Opsional, boleh dikosongkan">
                         @error('email') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Umur Kepala Keluarga</label>
+                        <input type="number" name="head_of_family_age" value="{{ old('head_of_family_age') }}" min="0" max="120" class="mt-2 w-full rounded-xl border border-stone-300 px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Contoh: 40">
+                        @error('head_of_family_age') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Gender Kepala Keluarga</label>
+                        <select name="head_of_family_gender" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+                            <option value="">Pilih</option>
+                            <option value="L" @selected(old('head_of_family_gender') === 'L')>Laki-laki</option>
+                            <option value="P" @selected(old('head_of_family_gender') === 'P')>Perempuan</option>
+                        </select>
+                        @error('head_of_family_gender') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                    </div>
                 </div>
+
+                {{-- Anggota keluarga lain, selain kepala keluarga di atas --}}
+                <div class="mt-8 flex items-center gap-3 border-t border-stone-100 pt-6">
+                    <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
+                    <h3 class="text-base font-black text-stone-900">Anggota Keluarga Lain</h3>
+                </div>
+
+                <div class="mt-5 space-y-4" data-members-wrapper>
+                    @php
+                        $defaultMembers = [
+                            ['name' => '', 'relationship' => 'ibu', 'age' => '', 'gender' => 'P'],
+                            ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
+                            ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
+                            ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
+                            ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
+                        ];
+                        $oldMembers = old('members', $defaultMembers);
+                    @endphp
+
+                    @foreach ($oldMembers as $index => $member)
+                        <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4" data-member-item>
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-sm font-bold text-stone-900">Anggota Lain <span data-member-number>{{ $index + 1 }}</span></p>
+                                <button type="button" class="text-sm font-semibold text-red-600 hover:text-red-800" data-remove-member>Hapus</button>
+                            </div>
+
+                            <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Nama</label>
+                                    <input type="text" name="members[{{ $index }}][name]" value="{{ $member['name'] ?? '' }}" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                    @error("members.$index.name") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Hubungan</label>
+                                    <select name="members[{{ $index }}][relationship]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" data-relationship-select>
+                                        <option value="ayah" @selected(($member['relationship'] ?? '') === 'ayah')>Ayah</option>
+                                        <option value="ibu" @selected(($member['relationship'] ?? '') === 'ibu')>Ibu</option>
+                                        <option value="anak" @selected(($member['relationship'] ?? '') === 'anak')>Anak</option>
+                                        <option value="lainnya" @selected(($member['relationship'] ?? '') === 'lainnya')>Lainnya</option>
+                                    </select>
+                                    @error("members.$index.relationship") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Usia</label>
+                                    <input type="number" name="members[{{ $index }}][age]" value="{{ $member['age'] ?? '' }}" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Contoh: 10">
+                                    @error("members.$index.age") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Gender</label>
+                                    <select name="members[{{ $index }}][gender]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                        <option value="">Pilih</option>
+                                        <option value="L" @selected(($member['gender'] ?? '') === 'L')>Laki-laki</option>
+                                        <option value="P" @selected(($member['gender'] ?? '') === 'P')>Perempuan</option>
+                                    </select>
+                                    @error("members.$index.gender") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+
+                @error('members') <span class="mt-2 block text-xs text-red-600">{{ $message }}</span> @enderror
+
+                <div class="mt-4 flex justify-center sm:justify-start">
+                    <button type="button" class="rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-800" data-add-member>+ Tambah Anggota</button>
+                </div>
+
+                <template id="member-template">
+                    <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4" data-member-item>
+                        <div class="flex items-center justify-between gap-3">
+                            <p class="text-sm font-bold text-stone-900">Anggota Lain <span data-member-number></span></p>
+                            <button type="button" class="text-sm font-semibold text-red-600 hover:text-red-800" data-remove-member>Hapus</button>
+                        </div>
+
+                        <div class="mt-4 grid gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Nama</label>
+                                <input type="text" name="members[__INDEX__][name]" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Hubungan</label>
+                                <select name="members[__INDEX__][relationship]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" data-relationship-select>
+                                    <option value="ayah">Ayah</option>
+                                    <option value="ibu">Ibu</option>
+                                    <option value="anak" selected>Anak</option>
+                                    <option value="lainnya">Lainnya</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Usia</label>
+                                <input type="number" name="members[__INDEX__][age]" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Gender</label>
+                                <select name="members[__INDEX__][gender]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
+                                    <option value="">Pilih</option>
+                                    <option value="L">Laki-laki</option>
+                                    <option value="P">Perempuan</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </section>
 
             @php
                 $iuranAmount = (string) (int) round((float) old('contribution_iuran_amount', $event->recommended_contribution_amount));
             @endphp
 
-            <section class="merdeka-card overflow-hidden p-5 sm:p-6">
+            <section class="merdeka-card overflow-x-clip p-5 sm:p-6">
                 <div class="flex items-center gap-3">
                     <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
                     <div>
@@ -132,133 +267,6 @@
                         @error('proof_file') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
                 </div>
-            </section>
-
-            <section class="merdeka-card overflow-hidden p-5 sm:p-6" data-family-form>
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center gap-3">
-                        <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
-                        <div>
-                            <h2 class="text-lg font-black text-stone-900">3. Daftar Anggota Keluarga</h2>
-                            <p class="text-sm text-stone-500">Tambahkan anggota keluarga. Bila anggota adalah anak dan ingin ikut lomba, pilih lomba yang diinginkan.</p>
-                        </div>
-                    </div>
-                    <button type="button" class="rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white hover:bg-red-800" data-add-member>Tambah Anggota</button>
-                </div>
-
-                <div class="mt-5 space-y-4" data-members-wrapper>
-                    @php
-                        $oldMembers = old('members', [['name' => '', 'relationship' => 'ayah', 'age' => '', 'gender' => '', 'competition_id' => '', 'notes' => '']]);
-                    @endphp
-
-                    @foreach ($oldMembers as $index => $member)
-                        <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4" data-member-item>
-                            <div class="flex items-center justify-between gap-3">
-                                <p class="text-sm font-bold text-stone-900">Anggota Keluarga <span data-member-number>{{ $index + 1 }}</span></p>
-                                <button type="button" class="text-sm font-semibold text-red-600 hover:text-red-800" data-remove-member>Hapus</button>
-                            </div>
-
-                            <div class="mt-4 grid gap-4 md:grid-cols-2">
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Nama</label>
-                                    <input type="text" name="members[{{ $index }}][name]" value="{{ $member['name'] ?? '' }}" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                                    @error("members.$index.name") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Hubungan</label>
-                                    <select name="members[{{ $index }}][relationship]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" data-relationship-select>
-                                        <option value="ayah" @selected(($member['relationship'] ?? '') === 'ayah')>Ayah</option>
-                                        <option value="ibu" @selected(($member['relationship'] ?? '') === 'ibu')>Ibu</option>
-                                        <option value="anak" @selected(($member['relationship'] ?? '') === 'anak')>Anak</option>
-                                        <option value="lainnya" @selected(($member['relationship'] ?? '') === 'lainnya')>Lainnya</option>
-                                    </select>
-                                    @error("members.$index.relationship") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Usia</label>
-                                    <input type="number" name="members[{{ $index }}][age]" value="{{ $member['age'] ?? '' }}" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Contoh: 10">
-                                    @error("members.$index.age") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Gender</label>
-                                    <select name="members[{{ $index }}][gender]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                                        <option value="">Pilih</option>
-                                        <option value="L" @selected(($member['gender'] ?? '') === 'L')>Laki-laki</option>
-                                        <option value="P" @selected(($member['gender'] ?? '') === 'P')>Perempuan</option>
-                                    </select>
-                                    @error("members.$index.gender") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                                </div>
-                                <div class="md:col-span-2" data-competition-field @if (($member['relationship'] ?? '') !== 'anak') style="display:none" @endif>
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Lomba yang Diikuti Anak</label>
-                                    <select name="members[{{ $index }}][competition_id]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                                        <option value="">Tidak ikut lomba</option>
-                                        @foreach ($competitions as $competition)
-                                            <option value="{{ $competition->id }}" @selected(($member['competition_id'] ?? '') === $competition->id)>{{ $competition->name }} - {{ $competition->target_participants }}</option>
-                                        @endforeach
-                                    </select>
-                                    @error("members.$index.competition_id") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                                </div>
-                                <div class="md:col-span-2">
-                                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Catatan Anggota</label>
-                                    <input type="text" name="members[{{ $index }}][notes]" value="{{ $member['notes'] ?? '' }}" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Opsional: misalnya butuh perhatian khusus, lomba tertentu, dll">
-                                    @error("members.$index.notes") <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-                @error('members') <span class="mt-2 block text-xs text-red-600">{{ $message }}</span> @enderror
-
-                <template id="member-template">
-                    <div class="rounded-2xl border border-stone-200 bg-stone-50 p-4" data-member-item>
-                        <div class="flex items-center justify-between gap-3">
-                            <p class="text-sm font-bold text-stone-900">Anggota Keluarga <span data-member-number></span></p>
-                            <button type="button" class="text-sm font-semibold text-red-600 hover:text-red-800" data-remove-member>Hapus</button>
-                        </div>
-
-                        <div class="mt-4 grid gap-4 md:grid-cols-2">
-                            <div>
-                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Nama</label>
-                                <input type="text" name="members[__INDEX__][name]" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Hubungan</label>
-                                <select name="members[__INDEX__][relationship]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" data-relationship-select>
-                                    <option value="ayah">Ayah</option>
-                                    <option value="ibu">Ibu</option>
-                                    <option value="anak" selected>Anak</option>
-                                    <option value="lainnya">Lainnya</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Usia</label>
-                                <input type="number" name="members[__INDEX__][age]" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Gender</label>
-                                <select name="members[__INDEX__][gender]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                                    <option value="">Pilih</option>
-                                    <option value="L">Laki-laki</option>
-                                    <option value="P">Perempuan</option>
-                                </select>
-                            </div>
-                            <div class="md:col-span-2" data-competition-field>
-                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Lomba yang Diikuti Anak</label>
-                                <select name="members[__INDEX__][competition_id]" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                                    <option value="">Tidak ikut lomba</option>
-                                    @foreach ($competitions as $competition)
-                                        <option value="{{ $competition->id }}">{{ $competition->name }} - {{ $competition->target_participants }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Catatan Anggota</label>
-                                <input type="text" name="members[__INDEX__][notes]" class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            </div>
-                        </div>
-                    </div>
-                </template>
             </section>
 
             <div class="merdeka-card p-5 sm:p-6">
@@ -342,28 +350,12 @@
 
                 const bindItem = (item) => {
                     const removeButton = item.querySelector('[data-remove-member]');
-                    const relationshipSelect = item.querySelector('[data-relationship-select]');
-                    const competitionField = item.querySelector('[data-competition-field]');
 
-                    const toggleCompetition = () => {
-                        const isChild = relationshipSelect?.value === 'anak';
-                        if (competitionField) {
-                            competitionField.style.display = isChild ? '' : 'none';
-                            if (!isChild) {
-                                const select = competitionField.querySelector('select');
-                                if (select) select.value = '';
-                            }
-                        }
-                    };
-
-                    relationshipSelect?.addEventListener('change', toggleCompetition);
                     removeButton?.addEventListener('click', () => {
                         if (wrapper.querySelectorAll('[data-member-item]').length === 1) return;
                         item.remove();
                         updateNumbers();
                     });
-
-                    toggleCompetition();
                 };
 
                 addButton?.addEventListener('click', () => {

@@ -19,6 +19,9 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/transparansi', 'finance')->name('public.finance');
     Route::get('/form-warga', 'familyForm')->name('public.family-form');
     Route::post('/form-warga', 'storeFamilyForm')->name('public.family-form.store');
+    Route::get('/daftar-lomba', 'lombaForm')->name('public.lomba-register');
+    Route::get('/daftar-lomba/cari', 'lombaLookup')->name('public.lomba-register.lookup');
+    Route::post('/daftar-lomba', 'storeLombaForm')->name('public.lomba-register.store');
     Route::get('/syarat-ketentuan', 'terms')->name('public.terms');
 });
 
@@ -44,7 +47,21 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::view('/acara', 'admin.event')->name('event');
         Route::view('/panitia', 'admin.committee')->name('committee');
         Route::view('/lomba', 'admin.competitions')->name('competitions');
+        Route::get('/peserta', function () {
+            $event = \App\Models\Event::where('status', 'active')->latest('start_date')->first()
+                ?? \App\Models\Event::latest('start_date')->first();
+
+            $competitions = $event
+                ? $event->competitions()->withCount('participants')->orderBy('name')->get()
+                : collect();
+
+            $selected = $competitions->firstWhere('slug', request('lomba')) ?? $competitions->first();
+
+            return view('admin.participants-index', compact('competitions', 'selected'));
+        })->name('participants-index');
+        Route::get('/peserta/export', [ReportController::class, 'participants'])->name('participants.export');
         Route::view('/warga', 'admin.residents')->name('residents');
+        Route::get('/warga/export', [ReportController::class, 'residents'])->name('residents.export');
         Route::view('/pendaftaran-warga', 'admin.family-submissions')->name('family-submissions');
         Route::get('/pendaftaran-warga/export', [ReportController::class, 'familySubmissions'])->name('family-submissions.export');
         Route::view('/transaksi', 'admin.transactions')->name('transactions');

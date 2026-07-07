@@ -11,6 +11,8 @@ new class extends Component
 
     public $name = '';
     public $target_participants = '';
+    public $min_age = '';
+    public $max_age = '';
     public $total_rounds = 1;
     public $status = 'published';
     public $description = '';
@@ -22,6 +24,8 @@ new class extends Component
         return [
             'name' => 'required|string|max:255',
             'target_participants' => 'nullable|string|max:255',
+            'min_age' => 'nullable|integer|min:0|max:120',
+            'max_age' => 'nullable|integer|min:0|max:120',
             'total_rounds' => 'required|integer|min:1|max:20',
             'status' => 'required|in:draft,published,closed',
             'description' => 'nullable|string',
@@ -37,6 +41,14 @@ new class extends Component
     public function save()
     {
         $data = $this->validate();
+
+        $data['min_age'] = ($data['min_age'] ?? '') === '' ? null : (int) $data['min_age'];
+        $data['max_age'] = ($data['max_age'] ?? '') === '' ? null : (int) $data['max_age'];
+
+        if ($data['min_age'] !== null && $data['max_age'] !== null && $data['max_age'] < $data['min_age']) {
+            $this->addError('max_age', 'Umur maksimal tidak boleh lebih kecil dari umur minimal.');
+            return;
+        }
 
         $event = $this->activeEvent();
         if (! $event) {
@@ -75,6 +87,8 @@ new class extends Component
         $this->editingId = $competition->id;
         $this->name = $competition->name;
         $this->target_participants = $competition->target_participants;
+        $this->min_age = $competition->min_age;
+        $this->max_age = $competition->max_age;
         $this->total_rounds = $competition->total_rounds;
         $this->status = $competition->status;
         $this->description = $competition->description;
@@ -91,7 +105,7 @@ new class extends Component
 
     public function resetForm()
     {
-        $this->reset(['editingId', 'name', 'target_participants', 'description']);
+        $this->reset(['editingId', 'name', 'target_participants', 'min_age', 'max_age', 'description']);
         $this->total_rounds = 1;
         $this->status = 'published';
     }
@@ -142,6 +156,19 @@ new class extends Component
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Umur Minimal</label>
+                        <input type="number" wire:model="min_age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                        @error('min_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Umur Maksimal</label>
+                        <input type="number" wire:model="max_age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                        @error('max_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+                <p class="-mt-1 text-[11px] text-slate-400">Kosongkan bila lomba terbuka untuk semua umur. Contoh lomba balita: min 1, max 6.</p>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Jumlah Babak</label>
                         <input type="number" wire:model="total_rounds" min="1" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500">
                         @error('total_rounds') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
@@ -187,6 +214,9 @@ new class extends Component
                                 <span class="text-xs px-2 py-0.5 rounded {{ $competition->status === 'published' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500' }}">{{ $competition->status }}</span>
                             </div>
                             <p class="text-xs text-slate-500">{{ $competition->target_participants }} · {{ $competition->total_rounds }} babak · {{ $competition->participants_count }} peserta</p>
+                            @if ($competition->age_limit_label)
+                                <p class="mt-0.5 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{{ $competition->age_limit_label }}</p>
+                            @endif
                         </div>
                         <div class="flex shrink-0 gap-2">
                             <a href="{{ route('admin.participants', $competition->slug) }}" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">Peserta &amp; Juara</a>

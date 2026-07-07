@@ -1,81 +1,26 @@
 <?php
 
-use App\Models\ResidentChild;
-use App\Models\User;
-use Illuminate\Support\Str;
+use App\Models\Event;
+use App\Models\FamilyMember;
+use App\Models\FamilySubmission;
 use Livewire\Component;
 
 new class extends Component
 {
-    public $resident_name = '';
-    public $resident_email = '';
-    public $resident_block = '';
-    public $phone_number = '';
-    public $children = [];
-
     public string $search = '';
     public string $success_message = '';
 
-    public function mount(): void
+    protected function activeEvent(): ?Event
     {
-        $this->children = $this->blankChildren();
-    }
-
-    protected function blankChildren(int $count = 3): array
-    {
-        return array_map(fn () => ['name' => '', 'age' => '', 'gender' => 'L'], range(1, $count));
-    }
-
-    public function addChild(): void
-    {
-        $this->children[] = ['name' => '', 'age' => '', 'gender' => 'L'];
-    }
-
-    public function removeChild($index): void
-    {
-        unset($this->children[$index]);
-        $this->children = array_values($this->children);
-    }
-
-    public function saveResident(): void
-    {
-        $this->validate([
-            'resident_name' => 'required|string|max:255',
-            'resident_email' => 'required|email|unique:users,email',
-            'resident_block' => 'required|string|max:50',
-            'phone_number' => 'nullable|string|max:50',
-            'children.*.name' => 'nullable|string|max:255',
-            'children.*.age' => 'nullable|integer|min:0|max:100',
-        ]);
-
-        $user = User::create([
-            'name' => $this->resident_name,
-            'email' => $this->resident_email,
-            'password' => bcrypt(Str::random(16)),
-            'resident_block' => $this->resident_block,
-            'phone_number' => $this->phone_number,
-        ]);
-
-        foreach ($this->children as $child) {
-            if (! empty($child['name'])) {
-                ResidentChild::create([
-                    'user_id' => $user->id,
-                    'name' => $child['name'],
-                    'age' => $child['age'] !== '' ? $child['age'] : null,
-                    'gender' => $child['gender'] ?? 'L',
-                ]);
-            }
-        }
-
-        $this->success_message = 'Data warga "' . $user->name . '" berhasil disimpan.';
-        $this->reset(['resident_name', 'resident_email', 'resident_block', 'phone_number']);
-        $this->children = $this->blankChildren();
+        return Event::where('status', 'active')->latest('start_date')->first()
+            ?? Event::latest('start_date')->first();
     }
 
     public function delete(string $id): void
     {
-        User::whereKey($id)->delete();
-        $this->success_message = 'Data warga dihapus.';
+        // Menghapus pendaftaran keluarga sekaligus seluruh anggotanya (cascade di DB).
+        FamilySubmission::whereKey($id)->delete();
+        $this->success_message = 'Data warga (pendaftaran keluarga) dihapus.';
     }
 
     public function dismissAlert(): void
@@ -85,21 +30,30 @@ new class extends Component
 
     public function with(): array
     {
-        $query = User::with('children')->latest();
+        $event = $this->activeEvent();
+
+        $scoped = fn ($query) => $event ? $query->where('event_id', $event->id) : $query;
+
+        $query = FamilySubmission::query()
+            ->tap($scoped)
+            ->with(['familyMembers' => fn ($q) => $q->withCount('competitionParticipations')->orderBy('registration_number')])
+            ->latest();
 
         if ($this->search !== '') {
             $term = '%' . $this->search . '%';
             $query->where(function ($q) use ($term) {
-                $q->where('name', 'like', $term)
+                $q->where('head_of_family_name', 'like', $term)
                     ->orWhere('resident_block', 'like', $term)
-                    ->orWhere('email', 'like', $term);
+                    ->orWhere('reference_code', 'like', $term);
             });
         }
 
         return [
-            'residents' => $query->take(100)->get(),
-            'totalResidents' => User::count(),
-            'totalChildren' => ResidentChild::count(),
+            'submissions' => $query->take(100)->get(),
+            'totalHouseholds' => FamilySubmission::query()->tap($scoped)->count(),
+            'totalMembers' => FamilyMember::query()->tap($scoped)->count(),
+            'totalChildren' => FamilyMember::query()->tap($scoped)->where('relationship', 'anak')->count(),
+            'activeEventName' => $event?->name,
         ];
     }
 };
@@ -113,114 +67,112 @@ new class extends Component
         </div>
     @endif
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-        {{-- Form --}}
-        <div class="h-fit rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-            <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
-                <span class="h-4 w-2 rounded bg-red-600"></span> Registrasi Data Warga &amp; Anak
-            </h3>
-            <form wire:submit.prevent="saveResident" class="space-y-4">
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">Nama Lengkap</label>
-                        <input type="text" wire:model="resident_name" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="Nama Warga">
-                        @error('resident_name') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">Email</label>
-                        <input type="email" wire:model="resident_email" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="warga@email.com">
-                        @error('resident_email') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">Blok Rumah</label>
-                        <input type="text" wire:model="resident_block" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="Contoh: A/12">
-                        @error('resident_block') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-semibold text-slate-600">No. HP / WhatsApp</label>
-                        <input type="text" wire:model="phone_number" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="0812345678">
-                        @error('phone_number') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                </div>
-
-                <div class="space-y-3 rounded-xl bg-slate-50 p-4">
-                    <div class="flex items-center justify-between">
-                        <label class="text-xs font-bold uppercase tracking-wide text-slate-700">Data Anak (untuk kategori lomba)</label>
-                        <button type="button" wire:click="addChild" class="text-xs font-semibold text-red-600 hover:text-red-700">+ Tambah Anak</button>
-                    </div>
-                    @foreach ($children as $index => $child)
-                        <div class="grid grid-cols-12 items-center gap-2">
-                            <input type="text" wire:model="children.{{ $index }}.name" class="col-span-6 rounded-lg border border-slate-300 px-3 py-2 text-xs outline-none focus:border-red-500" placeholder="Nama Anak">
-                            <input type="number" wire:model="children.{{ $index }}.age" class="col-span-3 rounded-lg border border-slate-300 px-3 py-2 text-xs outline-none focus:border-red-500" placeholder="Usia">
-                            <select wire:model="children.{{ $index }}.gender" class="col-span-2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs outline-none focus:border-red-500">
-                                <option value="L">L</option>
-                                <option value="P">P</option>
-                            </select>
-                            <div class="col-span-1 text-center">
-                                @if (count($children) > 1)
-                                    <button type="button" wire:click="removeChild({{ $index }})" class="font-bold text-slate-400 hover:text-red-600">&times;</button>
-                                @endif
-                            </div>
-                        </div>
-                    @endforeach
-                </div>
-
-                <div class="flex justify-end">
-                    <button type="submit" class="rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700">Simpan Data Warga</button>
-                </div>
-            </form>
+    {{-- Sumber data: Data Warga dibaca langsung dari pendaftaran form warga publik. --}}
+    <div class="mb-6 flex flex-col gap-3 rounded-2xl border border-sky-200 bg-sky-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-start gap-3">
+            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </span>
+            <div>
+                <p class="text-sm font-semibold text-sky-900">Data warga otomatis dari Form Warga</p>
+                <p class="mt-0.5 text-xs leading-5 text-sky-800">Daftar di bawah diambil dari pendaftaran keluarga di halaman <span class="font-semibold">Form Warga</span> publik. Verifikasi tiap pengajuan di menu <span class="font-semibold">Pendaftaran Warga</span>.</p>
+                @if ($activeEventName)
+                    <p class="mt-1 text-xs text-sky-700">Acara aktif: <span class="font-semibold">{{ $activeEventName }}</span></p>
+                @endif
+            </div>
         </div>
+        <a href="{{ route('public.family-form') }}" target="_blank" class="shrink-0 rounded-xl border border-sky-300 bg-white px-4 py-2 text-center text-sm font-semibold text-sky-700 transition hover:bg-sky-100">Buka Form Warga &rarr;</a>
+    </div>
 
-        {{-- List --}}
-        <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+    {{-- List --}}
+    <div class="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:p-5">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h3 class="text-base font-semibold text-slate-900">Daftar Warga</h3>
-                    <p class="text-xs text-slate-500">{{ $totalResidents }} warga · {{ $totalChildren }} anak terdaftar</p>
+                    <p class="text-xs text-slate-500">{{ $totalHouseholds }} keluarga · {{ $totalMembers }} anggota · {{ $totalChildren }} anak</p>
                 </div>
-                <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 sm:w-56" placeholder="Cari nama / blok...">
+                <div class="flex items-center gap-2">
+                    <a href="{{ route('admin.residents.export', ['format' => 'csv']) }}" class="inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                        <x-icon name="wallet" class="h-4 w-4" /> Excel
+                    </a>
+                    <a href="{{ route('admin.residents.export', ['format' => 'pdf']) }}" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100">
+                        <x-icon name="calendar" class="h-4 w-4" /> PDF
+                    </a>
+                </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm">
-                    <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 sm:max-w-xs" placeholder="Cari nama / blok / No. Ref...">
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[760px] text-left text-sm">
+                <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                    <tr>
+                        <th class="px-4 py-3 w-28">No. Daftar</th>
+                        <th class="px-4 py-3">Nama</th>
+                        <th class="px-4 py-3">Hubungan</th>
+                        <th class="px-4 py-3">Umur</th>
+                        <th class="px-4 py-3">L/P</th>
+                        <th class="px-4 py-3">Lomba</th>
+                    </tr>
+                </thead>
+                @forelse ($submissions as $submission)
+                    <tbody class="border-t-4 border-slate-100">
+                        {{-- Header grup per keluarga --}}
                         <tr>
-                            <th class="px-4 py-3">Nama</th>
-                            <th class="px-4 py-3">Blok</th>
-                            <th class="px-4 py-3">Anak</th>
-                            <th class="px-4 py-3"></th>
+                            <td colspan="6" class="border-l-4 border-red-500 bg-slate-100 px-4 py-2.5">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                        <span class="text-sm font-bold text-slate-900">Keluarga {{ $submission->head_of_family_name }}</span>
+                                        <span class="rounded-md border border-red-100 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Blok {{ $submission->resident_block ?: '-' }}</span>
+                                        <span class="h-3.5 w-px bg-slate-300"></span>
+                                        <span class="font-mono text-xs text-slate-500">{{ $submission->reference_code }}</span>
+                                        <span class="h-3.5 w-px bg-slate-300"></span>
+                                        <span class="text-xs text-slate-400">{{ $submission->familyMembers->count() }} anggota</span>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        @if ($submission->status === 'verified')
+                                            <span class="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Terverifikasi</span>
+                                        @elseif ($submission->status === 'rejected')
+                                            <span class="rounded-full border border-red-100 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">Ditolak</span>
+                                        @else
+                                            <span class="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Menunggu</span>
+                                        @endif
+                                        <button wire:click="delete('{{ $submission->id }}')" wire:confirm="Hapus data warga ini beserta seluruh anggotanya? Tindakan ini tidak bisa dibatalkan." class="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus Keluarga</button>
+                                    </div>
+                                </div>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100">
-                        @forelse ($residents as $resident)
+                        {{-- Satu baris per anggota keluarga, tiap anggota punya No. Daftar sendiri --}}
+                        @foreach ($submission->familyMembers as $member)
                             <tr class="hover:bg-slate-50/60">
-                                <td class="px-4 py-3">
-                                    <p class="font-semibold text-slate-900">{{ $resident->name }}</p>
-                                    <p class="text-xs text-slate-400">{{ $resident->phone_number ?: $resident->email }}</p>
+                                <td class="px-4 py-2.5">
+                                    <span class="rounded-md bg-red-700 px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-white">{{ $member->registration_number ?: '—' }}</span>
                                 </td>
-                                <td class="px-4 py-3"><span class="rounded border border-red-100 bg-red-50 px-2 py-0.5 text-xs text-red-700">{{ $resident->resident_block ?: '-' }}</span></td>
-                                <td class="px-4 py-3">
-                                    @if ($resident->children->count())
-                                        <div class="flex flex-wrap gap-1">
-                                            @foreach ($resident->children as $child)
-                                                <span class="rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">{{ $child->name }}{{ $child->age ? ' (' . $child->age . ')' : '' }}</span>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <span class="text-xs text-slate-400">-</span>
+                                <td class="px-4 py-2.5 font-medium text-slate-900">
+                                    {{ $member->name }}
+                                    @if ($loop->first)
+                                        <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Kepala</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-3 text-right">
-                                    <button wire:click="delete('{{ $resident->id }}')" wire:confirm="Hapus data warga ini?" class="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus</button>
+                                <td class="px-4 py-2.5 capitalize text-slate-600">{{ $member->relationship }}</td>
+                                <td class="px-4 py-2.5 text-slate-600">{{ $member->age !== null ? $member->age . ' th' : '-' }}</td>
+                                <td class="px-4 py-2.5 text-slate-600">{{ $member->gender ?: '-' }}</td>
+                                <td class="px-4 py-2.5">
+                                    @if ($member->competition_participations_count > 0)
+                                        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Ikut {{ $member->competition_participations_count }} lomba</span>
+                                    @else
+                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Belum ikut</span>
+                                    @endif
                                 </td>
                             </tr>
-                        @empty
-                            <tr><td colspan="4" class="px-4 py-10 text-center text-slate-400">Belum ada data warga.</td></tr>
-                        @endforelse
+                        @endforeach
                     </tbody>
-                </table>
-            </div>
+                @empty
+                    <tbody>
+                        <tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">Belum ada warga terdaftar. Data akan muncul otomatis setelah warga mengisi Form Warga.</td></tr>
+                    </tbody>
+                @endforelse
+            </table>
         </div>
     </div>
 </div>
