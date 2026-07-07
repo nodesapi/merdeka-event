@@ -14,18 +14,30 @@
 </head>
 <body class="min-h-screen bg-slate-50 font-sans text-slate-800 antialiased">
     @php
-        $nav = [
-            ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'match' => 'admin.dashboard'],
-            ['route' => 'admin.event', 'label' => 'Acara & Jadwal', 'match' => 'admin.event'],
-            ['route' => 'admin.committee', 'label' => 'Susunan Panitia', 'match' => 'admin.committee'],
-            ['route' => 'admin.competitions', 'label' => 'Lomba', 'match' => 'admin.competitions'],
-            ['route' => 'admin.participants-index', 'label' => 'Peserta', 'match' => 'admin.participants-index,admin.participants'],
-            ['route' => 'admin.family-submissions', 'label' => 'Pendaftaran Warga', 'match' => 'admin.family-submissions'],
-            ['route' => 'admin.residents', 'label' => 'Data Warga', 'match' => 'admin.residents'],
-            ['route' => 'admin.transactions', 'label' => 'Transaksi Dana', 'match' => 'admin.transactions'],
-            ['route' => 'admin.settings', 'label' => 'Pengaturan Website', 'match' => 'admin.settings'],
-        ];
         $user = auth()->user();
+        $isAdmin = $user?->hasRole('admin') ?? false;
+        $navGroups = [
+            ['heading' => null, 'items' => [
+                ['route' => 'admin.dashboard', 'label' => 'Dashboard', 'match' => 'admin.dashboard'],
+            ]],
+            ['heading' => 'Acara & Lomba', 'items' => [
+                ['route' => 'admin.event', 'label' => 'Acara & Jadwal', 'match' => 'admin.event'],
+                ['route' => 'admin.competitions', 'label' => 'Lomba', 'match' => 'admin.competitions'],
+                ['route' => 'admin.participants-index', 'label' => 'Peserta', 'match' => 'admin.participants-index,admin.participants'],
+            ]],
+            ['heading' => 'Warga', 'items' => [
+                ['route' => 'admin.family-submissions', 'label' => 'Pendaftaran Warga', 'match' => 'admin.family-submissions'],
+                ['route' => 'admin.residents', 'label' => 'Data Warga', 'match' => 'admin.residents'],
+            ]],
+            ['heading' => 'Keuangan', 'items' => [
+                ['route' => 'admin.transactions', 'label' => 'Transaksi Dana', 'match' => 'admin.transactions'],
+            ]],
+            ['heading' => 'Kepanitiaan & Sistem', 'items' => [
+                ['route' => 'admin.committee', 'label' => 'Susunan Panitia', 'match' => 'admin.committee'],
+                ['route' => 'admin.users', 'label' => 'Manajemen User', 'match' => 'admin.users', 'admin_only' => true],
+                ['route' => 'admin.settings', 'label' => 'Pengaturan Website', 'match' => 'admin.settings'],
+            ]],
+        ];
         $widthClasses = [
             'full' => 'max-w-none',
             '7xl' => 'max-w-7xl',
@@ -55,19 +67,31 @@
             </div>
 
             <div class="flex-1 overflow-y-auto">
-                <nav class="space-y-1 p-4">
-                    @foreach ($nav as $item)
-                        @php $active = collect(explode(',', $item['match']))->contains(fn ($r) => request()->routeIs(trim($r))); @endphp
-                        <a href="{{ route($item['route']) }}" class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition {{ $active ? 'bg-red-50 text-red-700 ring-1 ring-red-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
-                            <span class="h-2.5 w-2.5 rounded-full {{ $active ? 'bg-red-600' : 'bg-slate-300' }}"></span>
-                            <span class="truncate">{{ $item['label'] }}</span>
-                        </a>
+                <nav class="space-y-4 p-4">
+                    @foreach ($navGroups as $group)
+                        @php $items = collect($group['items'])->reject(fn ($i) => ($i['admin_only'] ?? false) && ! $isAdmin); @endphp
+                        @if ($items->isNotEmpty())
+                            <div class="space-y-1">
+                                @if ($group['heading'])
+                                    <p class="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ $group['heading'] }}</p>
+                                @endif
+                                @foreach ($items as $item)
+                                    @php $active = collect(explode(',', $item['match']))->contains(fn ($r) => request()->routeIs(trim($r))); @endphp
+                                    <a href="{{ route($item['route']) }}" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition {{ $active ? 'bg-red-50 text-red-700 ring-1 ring-red-100' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900' }}">
+                                        <span class="h-2.5 w-2.5 rounded-full {{ $active ? 'bg-red-600' : 'bg-slate-300' }}"></span>
+                                        <span class="truncate">{{ $item['label'] }}</span>
+                                    </a>
+                                @endforeach
+                            </div>
+                        @endif
                     @endforeach
 
-                    <a href="{{ route('public.home') }}" target="_blank" class="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">
-                        <span class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
-                        <span class="truncate">Lihat Halaman Warga</span>
-                    </a>
+                    <div class="space-y-1 border-t border-slate-100 pt-3">
+                        <a href="{{ route('public.home') }}" target="_blank" class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">
+                            <span class="h-2.5 w-2.5 rounded-full bg-slate-300"></span>
+                            <span class="truncate">Lihat Halaman Warga</span>
+                        </a>
+                    </div>
                 </nav>
             </div>
 

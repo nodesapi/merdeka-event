@@ -67,6 +67,7 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::view('/transaksi', 'admin.transactions')->name('transactions');
         Route::get('/transaksi/export', [ReportController::class, 'transactions'])->name('transactions.export');
         Route::view('/pengaturan', 'admin.settings')->name('settings');
+        Route::view('/users', 'admin.users')->middleware('role:admin')->name('users');
         Route::get('/lomba/{competition:slug}/peserta', function (Competition $competition) {
             return view('admin.participants', ['competition' => $competition]);
         })->name('participants');
