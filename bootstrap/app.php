@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
+
+        // Webhook pembayaran dari PayHook diverifikasi via HMAC, bukan CSRF token.
+        $middleware->validateCsrfTokens(except: [
+            'webhook/payhook',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

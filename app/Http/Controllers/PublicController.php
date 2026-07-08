@@ -11,6 +11,7 @@ use App\Models\FamilyMember;
 use App\Models\FamilySubmission;
 use App\Models\Transaction;
 use App\Support\AgeCategory;
+use App\Support\PayHook;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -184,7 +185,7 @@ class PublicController extends Controller
             'phone_number' => ['required', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
-            'payment_method' => ['required', 'in:transfer,cash,other'],
+            'payment_method' => ['required', 'in:transfer,cash,other,qris'],
             'payment_notes' => ['nullable', 'string', 'max:1000'],
             'proof_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:4096'],
             'contribution_iuran_amount' => ['nullable', 'numeric', 'min:0'],
@@ -206,6 +207,29 @@ class PublicController extends Controller
         ], [
             'terms.accepted' => 'Anda harus menyetujui Syarat & Ketentuan terlebih dahulu.',
         ]);
+
+        // Cegah pendaftaran ganda: satu No. HP (dinormalisasi 0<->62) hanya boleh punya
+        // satu pendaftaran aktif per acara. Untuk menambah anggota, lewat panitia
+        // (tanpa iuran ulang). Pendaftaran yang sudah "rejected" tidak menghalangi.
+        $normalizedPhone = FamilySubmission::normalizePhone($validated['phone_number']);
+        if ($normalizedPhone) {
+            $existing = FamilySubmission::where('event_id', $event->id)
+                ->where('status', '!=', 'rejected')
+                ->get()
+                ->first(fn (FamilySubmission $s) => FamilySubmission::normalizePhone($s->phone_number) === $normalizedPhone);
+
+            if ($existing) {
+                $message = 'Nomor HP ini sudah terdaftar (No. Ref ' . $existing->reference_code . ' a/n ' . $existing->head_of_family_name . '). ';
+
+                if ($existing->payment_method === 'qris' && $existing->payment_status !== 'paid') {
+                    $message .= 'Pendaftaran Anda masih menunggu pembayaran — silakan lanjutkan pembayaran QRIS atau hubungi panitia.';
+                } else {
+                    $message .= 'Jika ingin menambah anggota keluarga, hubungi panitia — tidak perlu iuran lagi.';
+                }
+
+                return back()->withErrors(['phone_number' => $message])->withInput();
+            }
+        }
 
         // Baris anggota lain yang namanya kosong diabaikan (form menyediakan beberapa slot).
         $members = collect($validated['members'])
@@ -258,7 +282,7 @@ class PublicController extends Controller
 
         $referenceCode = 'REG-' . now()->format('Ymd') . '-' . Str::upper(Str::random(4));
 
-        $registeredMembers = DB::transaction(function () use ($event, $validated, $members, $contributionItems, $proofPath, $referenceCode): array {
+        $result = DB::transaction(function () use ($event, $validated, $members, $contributionItems, $proofPath, $referenceCode): array {
             $submission = FamilySubmission::create([
                 'event_id' => $event->id,
                 'reference_code' => $referenceCode,
@@ -313,14 +337,130 @@ class PublicController extends Controller
                 ];
             }
 
-            return $created;
+            return ['submission' => $submission, 'members' => $created];
         });
+
+        /** @var FamilySubmission $submission */
+        $submission = $result['submission'];
+        $registeredMembers = $result['members'];
+
+        // Jika warga memilih QRIS & PayHook aktif: buat invoice QRIS dinamis lalu
+        // arahkan ke halaman pembayaran. Bila gagal, jatuh ke alur manual biasa.
+        if ($validated['payment_method'] === 'qris') {
+            $payhook = new PayHook();
+
+            if ($payhook->enabled()) {
+                $invoice = $payhook->createQrisInvoice(
+                    amount: (float) $submission->submitted_total,
+                    customerName: $submission->head_of_family_name,
+                    externalId: $submission->reference_code,
+                    phone: $submission->phone_number,
+                    description: 'Iuran warga ' . $submission->reference_code,
+                    expiresInMinutes: 60,
+                );
+
+                if ($invoice) {
+                    $submission->update([
+                        'payment_provider' => 'payhook',
+                        'payment_invoice_number' => $invoice['invoice_number'],
+                        'payment_pay_amount' => $invoice['pay_amount'],
+                        'payment_qris_svg' => $invoice['qris_svg'],
+                        'payment_status' => 'pending',
+                        'payment_expires_at' => $invoice['expires_at'] ? \Illuminate\Support\Carbon::parse($invoice['expires_at']) : null,
+                    ]);
+
+                    return redirect()
+                        ->route('public.qris-payment', $submission->reference_code)
+                        ->with('reference_code', $referenceCode)
+                        ->with('registered_members', $registeredMembers);
+                }
+
+                return redirect()
+                    ->route('public.family-form')
+                    ->with('warning_message', 'Form terkirim, tetapi QR pembayaran gagal dibuat. Silakan hubungi panitia atau gunakan metode transfer manual.')
+                    ->with('reference_code', $referenceCode)
+                    ->with('registered_members', $registeredMembers);
+            }
+        }
 
         return redirect()
             ->route('public.family-form')
             ->with('success_message', 'Form keluarga berhasil dikirim. Simpan No Daftar tiap anggota di bawah ini.')
             ->with('reference_code', $referenceCode)
             ->with('registered_members', $registeredMembers);
+    }
+
+    /**
+     * Halaman pembayaran QRIS untuk sebuah submission (setelah Form Warga dikirim).
+     */
+    public function qrisPayment(FamilySubmission $submission): View
+    {
+        // Halaman ini khusus metode QRIS.
+        abort_unless($submission->payment_method === 'qris', 404);
+
+        $payhook = new PayHook();
+
+        // "Lanjutkan pembayaran": kalau belum lunas dan invoice belum ada / QR kedaluwarsa,
+        // buat invoice QRIS baru supaya warga yang balik lagi tetap dapat QR yang valid.
+        if ($submission->payment_status !== 'paid' && $payhook->enabled()) {
+            $expired = $submission->payment_expires_at && $submission->payment_expires_at->isPast();
+            $missing = ! filled($submission->payment_invoice_number) || ! filled($submission->payment_qris_svg);
+
+            if ($expired || $missing) {
+                $invoice = $payhook->createQrisInvoice(
+                    amount: (float) $submission->submitted_total,
+                    customerName: $submission->head_of_family_name,
+                    // external_id unik agar PayHook tidak me-replay invoice lama (idempotency).
+                    externalId: $submission->reference_code . '-' . now()->format('YmdHis'),
+                    phone: $submission->phone_number,
+                    description: 'Iuran warga ' . $submission->reference_code,
+                    expiresInMinutes: 60,
+                );
+
+                if ($invoice) {
+                    $submission->update([
+                        'payment_provider' => 'payhook',
+                        'payment_invoice_number' => $invoice['invoice_number'],
+                        'payment_pay_amount' => $invoice['pay_amount'],
+                        'payment_qris_svg' => $invoice['qris_svg'],
+                        'payment_status' => 'pending',
+                        'payment_expires_at' => $invoice['expires_at'] ? \Illuminate\Support\Carbon::parse($invoice['expires_at']) : null,
+                    ]);
+                }
+            }
+        }
+
+        return view('public.qris-payment', [
+            'event' => $this->activeEvent(),
+            'submission' => $submission,
+            'registeredMembers' => session('registered_members', []),
+        ]);
+    }
+
+    /**
+     * Endpoint status pembayaran (dipolling halaman QRIS).
+     */
+    public function qrisStatus(FamilySubmission $submission): \Illuminate\Http\JsonResponse
+    {
+        return response()->json([
+            'status' => $submission->payment_status,
+            'paid' => $submission->payment_status === 'paid',
+            'paid_at' => optional($submission->payment_paid_at)->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Bukti pendaftaran (siap cetak / simpan PDF) untuk satu keluarga.
+     */
+    public function registrationReceipt(FamilySubmission $submission): View
+    {
+        $submission->load(['event', 'familyMembers' => fn ($q) => $q->orderBy('registration_number'), 'contributionItems']);
+
+        return view('public.registration-receipt', [
+            'submission' => $submission,
+            'site' => \App\Models\SiteSetting::current(),
+            'generatedAt' => now(),
+        ]);
     }
 
     /**
@@ -359,6 +499,7 @@ class PublicController extends Controller
 
         $member = FamilyMember::where('event_id', $event->id)
             ->where('registration_number', $number)
+            ->whereHas('familySubmission', fn ($q) => $q->where('status', '!=', 'rejected'))
             ->first();
 
         if (! $member) {

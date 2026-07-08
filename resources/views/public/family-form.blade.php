@@ -231,31 +231,97 @@
 
                 @error('contribution_iuran_amount') <span class="mt-3 block text-xs text-red-600">{{ $message }}</span> @enderror
 
-                @if ($site?->bank_account_number)
-                    <div class="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-center shadow-sm">
-                        <p class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Rekening Tujuan Transfer</p>
-                        <p class="mt-2 text-lg font-extrabold text-emerald-950">{{ $site->bank_name ?: 'Bank' }} · {{ $site->bank_account_number }}</p>
-                        @if ($site->bank_account_holder)
-                            <p class="mt-1 text-sm text-emerald-800">a/n {{ $site->bank_account_holder }}</p>
+                <div class="mt-5" data-payment-picker>
+                    <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Metode Pembayaran</label>
+                    <div class="mt-2 grid gap-3 sm:grid-cols-2">
+                        @if ($site?->payhook_enabled)
+                            <label class="relative block cursor-pointer">
+                                <input type="radio" name="payment_method" value="qris" class="peer sr-only" @checked(old('payment_method') === 'qris') data-payment-radio>
+                                <div class="flex h-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-3 transition peer-checked:border-red-500 peer-checked:bg-red-50/40 hover:border-red-300">
+                                    <div class="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-stone-200 bg-white p-1">
+                                        @if ($site?->qris_logo_url)
+                                            <img src="{{ $site->qris_logo_url }}" alt="QRIS" class="max-h-full max-w-full object-contain">
+                                        @else
+                                            <span class="text-sm font-black text-red-700">QRIS</span>
+                                        @endif
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-bold text-stone-900">QRIS</p>
+                                        <p class="text-xs text-stone-500">Bayar langsung, QR otomatis</p>
+                                    </div>
+                                </div>
+                            </label>
                         @endif
-                        <p class="mt-3 text-sm leading-6 text-emerald-800">
-                            Bila memilih metode <span class="font-semibold">transfer</span>, silakan kirim ke rekening di atas lalu unggah bukti pembayarannya di form ini.
-                        </p>
-                    </div>
-                @endif
 
-                <div class="mt-5 grid gap-4 md:grid-cols-2">
-                    <div>
-                        <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Metode Pembayaran</label>
-                        <select name="payment_method" data-custom-select class="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500">
-                            <option value="">Pilih metode</option>
-                            <option value="transfer" @selected(old('payment_method') === 'transfer')>Transfer</option>
-                            <option value="cash" @selected(old('payment_method') === 'cash')>Tunai</option>
-                            <option value="other" @selected(old('payment_method') === 'other')>Lainnya</option>
-                        </select>
-                        @error('payment_method') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                        <label class="relative block cursor-pointer">
+                            <input type="radio" name="payment_method" value="transfer" class="peer sr-only" @checked(old('payment_method') === 'transfer') data-payment-radio>
+                            <div class="flex h-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-3 transition peer-checked:border-red-500 peer-checked:bg-red-50/40 hover:border-red-300">
+                                <div class="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-stone-200 bg-white p-1">
+                                    @if ($site?->bank_logo_url)
+                                        <img src="{{ $site->bank_logo_url }}" alt="{{ $site->bank_name }}" class="max-h-full max-w-full object-contain">
+                                    @else
+                                        <span class="text-xs font-black text-stone-700">{{ $site?->bank_name ?: 'BANK' }}</span>
+                                    @endif
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-stone-900">Transfer Bank</p>
+                                    <p class="truncate text-xs text-stone-500">{{ $site?->bank_name ?: 'Transfer' }} · unggah bukti</p>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="relative block cursor-pointer">
+                            <input type="radio" name="payment_method" value="cash" class="peer sr-only" @checked(old('payment_method') === 'cash') data-payment-radio>
+                            <div class="flex h-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-3 transition peer-checked:border-red-500 peer-checked:bg-red-50/40 hover:border-red-300">
+                                <div class="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xl">💵</div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-stone-900">Tunai</p>
+                                    <p class="text-xs text-stone-500">Bayar langsung ke panitia</p>
+                                </div>
+                            </div>
+                        </label>
+
+                        <label class="relative block cursor-pointer">
+                            <input type="radio" name="payment_method" value="other" class="peer sr-only" @checked(old('payment_method') === 'other') data-payment-radio>
+                            <div class="flex h-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-3 transition peer-checked:border-red-500 peer-checked:bg-red-50/40 hover:border-red-300">
+                                <div class="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xl">🧾</div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-stone-900">Lainnya</p>
+                                    <p class="text-xs text-stone-500">Metode lain / catat manual</p>
+                                </div>
+                            </div>
+                        </label>
                     </div>
-                    <div>
+                    @error('payment_method') <span class="mt-2 block text-xs text-red-600">{{ $message }}</span> @enderror
+
+                    {{-- Panel khusus TRANSFER: rekening tujuan (muncul hanya saat Transfer dipilih). --}}
+                    @if ($site?->bank_account_number)
+                        <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-center shadow-sm" data-transfer-info hidden>
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Rekening Tujuan Transfer</p>
+                            <p class="mt-2 text-lg font-extrabold text-emerald-950">{{ $site->bank_name ?: 'Bank' }} · {{ $site->bank_account_number }}</p>
+                            @if ($site->bank_account_holder)
+                                <p class="mt-1 text-sm text-emerald-800">a/n {{ $site->bank_account_holder }}</p>
+                            @endif
+                            <p class="mt-3 text-sm leading-6 text-emerald-800">Transfer ke rekening di atas, lalu unggah bukti pembayarannya di bawah.</p>
+                        </div>
+                    @endif
+
+                    {{-- Panel khusus QRIS: info QR muncul setelah kirim (QR dinamis dibuat saat submit). --}}
+                    @if ($site?->payhook_enabled)
+                        <div class="mt-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50/70 p-4" data-qris-info hidden>
+                            <div class="flex h-14 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-red-200 bg-white p-1.5">
+                                @if ($site?->qris_logo_url)
+                                    <img src="{{ $site->qris_logo_url }}" alt="QRIS" class="max-h-full max-w-full object-contain">
+                                @else
+                                    <span class="text-sm font-black text-red-700">QRIS</span>
+                                @endif
+                            </div>
+                            <p class="text-sm leading-6 text-red-800"><b>Pembayaran QRIS.</b> Setelah form dikirim, kamu diarahkan ke halaman <b>QR dinamis</b> untuk dibayar — tidak perlu unggah bukti.</p>
+                        </div>
+                    @endif
+
+                    {{-- Bukti Pembayaran: disembunyikan otomatis saat QRIS dipilih (tidak perlu bukti). --}}
+                    <div class="mt-4" data-proof-block>
                         <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Bukti Pembayaran</label>
                         <div class="mt-2 overflow-hidden rounded-xl border border-stone-300 bg-white">
                             <label class="flex w-full min-w-0 cursor-pointer items-center justify-between gap-3 px-4 py-3" for="proof_file">
@@ -266,7 +332,32 @@
                         </div>
                         @error('proof_file') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
+
                 </div>
+
+                <script>
+                    (function () {
+                        const picker = document.querySelector('[data-payment-picker]');
+                        if (!picker) return;
+                        const proofBlock = picker.querySelector('[data-proof-block]');
+                        const qrisInfo = picker.querySelector('[data-qris-info]');
+                        const transferInfo = picker.querySelector('[data-transfer-info]');
+                        const radios = picker.querySelectorAll('[data-payment-radio]');
+
+                        function sync() {
+                            const selected = picker.querySelector('[data-payment-radio]:checked');
+                            const method = selected ? selected.value : null;
+                            const isQris = method === 'qris';
+                            const isTransfer = method === 'transfer';
+                            // QRIS tak perlu bukti; metode lain (transfer/tunai/lainnya) tampilkan bukti.
+                            if (proofBlock) proofBlock.classList.toggle('hidden', isQris);
+                            if (qrisInfo) qrisInfo.hidden = !isQris;
+                            if (transferInfo) transferInfo.hidden = !isTransfer;
+                        }
+                        radios.forEach(r => r.addEventListener('change', sync));
+                        sync();
+                    })();
+                </script>
             </section>
 
             <div class="merdeka-card p-5 sm:p-6">

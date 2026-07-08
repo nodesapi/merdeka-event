@@ -19,10 +19,17 @@ use Illuminate\Database\Eloquent\Model;
     'bank_name',
     'bank_account_number',
     'bank_account_holder',
+    'bank_logo_path',
+    'qris_logo_path',
     'terms_conditions',
     'welcome_enabled',
     'welcome_title',
     'welcome_message',
+    'payhook_enabled',
+    'payhook_base_url',
+    'payhook_api_key',
+    'payhook_webhook_secret',
+    'payhook_channel_type',
 ])]
 class SiteSetting extends Model
 {
@@ -32,6 +39,9 @@ class SiteSetting extends Model
     {
         return [
             'welcome_enabled' => 'boolean',
+            'payhook_enabled' => 'boolean',
+            'payhook_api_key' => 'encrypted',
+            'payhook_webhook_secret' => 'encrypted',
         ];
     }
 
@@ -106,6 +116,16 @@ TXT;
     public function getOgImageUrlAttribute(): ?string
     {
         return $this->assetUrl($this->og_image_path);
+    }
+
+    public function getBankLogoUrlAttribute(): ?string
+    {
+        return $this->assetUrl($this->bank_logo_path);
+    }
+
+    public function getQrisLogoUrlAttribute(): ?string
+    {
+        return $this->assetUrl($this->qris_logo_path);
     }
 
     /**

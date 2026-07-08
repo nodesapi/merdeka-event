@@ -1,4 +1,4 @@
-@props(['title' => null, 'eventName' => null])
+@props(['title' => null, 'eventName' => null, 'hideWelcome' => false])
 
 @php
     $siteName = $site?->site_name ?: ($eventName ?: config('app.name', 'Portal Warga'));
@@ -51,7 +51,7 @@
 
         $musicTracks = \App\Models\MusicTrack::orderBy('sort_order')->get();
         $musicUrls = $musicTracks->map(fn ($t) => $t->url)->values();
-        $welcomeEnabled = (bool) ($site?->welcome_enabled ?? true);
+        $welcomeEnabled = (bool) ($site?->welcome_enabled ?? true) && ! $hideWelcome;
         $showWelcome = $welcomeEnabled && ($musicUrls->isNotEmpty() || true);
     @endphp
 

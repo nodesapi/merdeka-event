@@ -31,7 +31,7 @@
                     @if ($tier1->isNotEmpty())
                         <div class="flex justify-center">
                             @foreach ($tier1 as $member)
-                                <div class="px-2"><x-committee-card :member="$member" variant="lead" class="w-64" /></div>
+                                <div class="px-2"><x-committee-card :member="$member" variant="lead" class="w-52" /></div>
                             @endforeach
                         </div>
                         @if ($tier2->isNotEmpty() || $tier3->isNotEmpty())
@@ -43,7 +43,7 @@
                     @if ($tier2->isNotEmpty())
                         <div class="org-branch">
                             @foreach ($tier2 as $member)
-                                <div class="org-node"><x-committee-card :member="$member" variant="core" class="w-64" /></div>
+                                <div class="org-node"><x-committee-card :member="$member" variant="core" class="w-52" /></div>
                             @endforeach
                         </div>
                         @if ($tier3->isNotEmpty())
@@ -55,7 +55,7 @@
                     @if ($tier3->isNotEmpty())
                         <div class="org-branch">
                             @foreach ($tier3 as $member)
-                                <div class="org-node"><x-committee-card :member="$member" class="w-64" /></div>
+                                <div class="org-node"><x-committee-card :member="$member" class="w-52" /></div>
                             @endforeach
                         </div>
                     @endif

@@ -21,7 +21,7 @@ new class extends Component
 
     public function selectSubmission(string $id): void
     {
-        $submission = FamilySubmission::with(['contributionItems', 'familyMembers.competition'])->findOrFail($id);
+        $submission = FamilySubmission::with(['contributionItems', 'familyMembers' => fn ($q) => $q->withCount('competitionParticipations')->orderBy('registration_number')])->findOrFail($id);
 
         $this->selectedSubmissionId = $submission->id;
         $this->reviewNotes = $submission->admin_notes ?? '';
@@ -35,47 +35,7 @@ new class extends Component
             return;
         }
 
-        DB::transaction(function () use ($submission): void {
-            $submission->loadMissing(['contributionItems', 'familyMembers.competition']);
-
-            foreach ($submission->contributionItems as $item) {
-                Transaction::firstOrCreate(
-                    ['contribution_item_id' => $item->id],
-                    [
-                        'user_id' => null,
-                        'amount' => $item->amount,
-                        'type' => 'income',
-                        'bank_name' => $this->paymentMethodLabel($submission->payment_method),
-                        'account_number' => $submission->reference_code,
-                        'resident_block' => $submission->resident_block,
-                        'description' => trim(($item->label ?: ucfirst($item->type)) . ' - ' . $submission->head_of_family_name . ($item->note ? ' (' . $item->note . ')' : '')),
-                        'status' => 'approved',
-                    ]
-                );
-            }
-
-            foreach ($submission->familyMembers->whereNotNull('competition_id') as $member) {
-                CompetitionParticipant::firstOrCreate(
-                    ['family_member_id' => $member->id],
-                    [
-                        'competition_id' => $member->competition_id,
-                        'name' => $member->name,
-                        'resident_block' => $submission->resident_block,
-                        'phone_number' => $submission->phone_number,
-                        'round' => 1,
-                        'status' => 'active',
-                        'rank' => null,
-                        'notes' => 'Pendaftaran via form warga ' . $submission->reference_code,
-                    ]
-                );
-            }
-
-            $submission->update([
-                'status' => 'verified',
-                'admin_notes' => $this->reviewNotes,
-                'verified_at' => now(),
-            ]);
-        });
+        $submission->approveAndRecord($this->reviewNotes);
 
         $this->successMessage = 'Form warga berhasil diverifikasi dan dicatat ke sistem.';
     }
@@ -104,11 +64,8 @@ new class extends Component
 
     public function paymentMethodLabel(?string $method): string
     {
-        return match ($method) {
-            'transfer' => 'Transfer',
-            'cash' => 'Tunai',
-            default => 'Lainnya',
-        };
+        // Sumber tunggal label metode (termasuk 'qris') ada di model.
+        return FamilySubmission::paymentMethodLabel($method);
     }
 
     protected function currentSubmission(): ?FamilySubmission
@@ -134,9 +91,9 @@ new class extends Component
         $selectedSubmission = null;
 
         if ($this->selectedSubmissionId) {
-            $selectedSubmission = FamilySubmission::with(['contributionItems', 'familyMembers.competition'])->find($this->selectedSubmissionId);
+            $selectedSubmission = FamilySubmission::with(['contributionItems', 'familyMembers' => fn ($q) => $q->withCount('competitionParticipations')->orderBy('registration_number')])->find($this->selectedSubmissionId);
         } elseif ($submissions->first()) {
-            $selectedSubmission = FamilySubmission::with(['contributionItems', 'familyMembers.competition'])->find($submissions->first()->id);
+            $selectedSubmission = FamilySubmission::with(['contributionItems', 'familyMembers' => fn ($q) => $q->withCount('competitionParticipations')->orderBy('registration_number')])->find($submissions->first()->id);
         }
 
         if ($selectedSubmission && ! $this->selectedSubmissionId) {
@@ -241,6 +198,27 @@ new class extends Component
                             </div>
                         </div>
 
+                        {{-- Kirim data ke warga (WhatsApp Web manual) & Bukti Pendaftaran (PDF/cetak). --}}
+                        <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3 sm:px-6">
+                            @if ($selectedSubmission->whatsappUrl())
+                                <a href="{{ $selectedSubmission->whatsappUrl() }}" target="_blank" rel="noopener" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700">
+                                    <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51l-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.71.306 1.263.489 1.694.625.712.227 1.36.195 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.29.173-1.414-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.548 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                    Kirim WhatsApp
+                                </a>
+                            @endif
+                            <a href="{{ route('public.registration-receipt', $selectedSubmission->reference_code) }}" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
+                                <x-icon name="calendar" class="h-4 w-4" /> Bukti / PDF
+                            </a>
+                            @if ($selectedSubmission->payment_method === 'qris' && $selectedSubmission->payment_status !== 'paid')
+                                <a href="{{ route('public.qris-payment', $selectedSubmission->reference_code) }}" target="_blank" class="inline-flex items-center gap-2 rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50">
+                                    Link Pembayaran QRIS
+                                </a>
+                            @endif
+                            @if ($selectedSubmission->payment_status === 'paid')
+                                <span class="ml-auto rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Pembayaran LUNAS (QRIS)</span>
+                            @endif
+                        </div>
+
                         <div class="grid gap-6 px-5 py-5 sm:px-6 xl:grid-cols-2">
                             <div class="space-y-4">
                                 <div class="rounded-2xl bg-slate-50 p-4">
@@ -291,9 +269,11 @@ new class extends Component
                                                         <p class="text-sm font-semibold text-slate-900">{{ $member->name }}</p>
                                                         <p class="mt-1 text-xs text-slate-500">{{ ucfirst($member->relationship) }} · {{ $member->age ? $member->age . ' tahun' : 'Usia belum diisi' }} · {{ $member->gender ?: '-' }}</p>
                                                     </div>
-                                                    <span class="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-700">
-                                                        {{ $member->competition?->name ?: 'Tidak ikut lomba' }}
-                                                    </span>
+                                                    @if ($member->competition_participations_count > 0)
+                                                        <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">Ikut {{ $member->competition_participations_count }} lomba</span>
+                                                    @else
+                                                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] text-slate-500">Belum ikut</span>
+                                                    @endif
                                                 </div>
                                                 @if ($member->notes)
                                                     <p class="mt-2 text-xs text-slate-500">{{ $member->notes }}</p>

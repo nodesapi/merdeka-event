@@ -125,6 +125,7 @@ class ReportController extends Controller
 
         $submissions = $event
             ? $event->familySubmissions()
+                ->where('status', '!=', 'rejected')
                 ->with(['familyMembers' => fn ($q) => $q->withCount('competitionParticipations')->orderBy('registration_number')])
                 ->latest()
                 ->get()

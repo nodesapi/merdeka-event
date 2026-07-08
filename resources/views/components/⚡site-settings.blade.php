@@ -33,11 +33,22 @@ new class extends Component
     public $favicon;
     public $hero_banner;
     public $og_image;
+    public $bank_logo;
+    public $qris_logo;
 
     public ?string $logo_path = null;
     public ?string $favicon_path = null;
     public ?string $hero_banner_path = null;
     public ?string $og_image_path = null;
+    public ?string $bank_logo_path = null;
+    public ?string $qris_logo_path = null;
+
+    public bool $payhook_enabled = false;
+    public $payhook_base_url = '';
+    public $payhook_channel_type = 'qris';
+    // Write-only: dibiarkan kosong saat load; hanya diperbarui bila admin mengisi.
+    public $payhook_api_key = '';
+    public $payhook_webhook_secret = '';
 
     public $success_message = '';
 
@@ -62,6 +73,12 @@ new class extends Component
         $this->favicon_path = $setting->favicon_path;
         $this->hero_banner_path = $setting->hero_banner_path;
         $this->og_image_path = $setting->og_image_path;
+        $this->bank_logo_path = $setting->bank_logo_path;
+        $this->qris_logo_path = $setting->qris_logo_path;
+        $this->payhook_enabled = (bool) ($setting->payhook_enabled ?? false);
+        $this->payhook_base_url = $setting->payhook_base_url ?? '';
+        $this->payhook_channel_type = $setting->payhook_channel_type ?: 'qris';
+        // Sengaja TIDAK memuat api_key/webhook_secret ke browser (write-only).
     }
 
     public function save()
@@ -83,6 +100,13 @@ new class extends Component
             'favicon' => 'nullable|max:1024|mimes:png,ico,svg,jpg,jpeg',
             'hero_banner' => 'nullable|image|max:8192',
             'og_image' => 'nullable|image|max:4096|mimes:jpg,jpeg,png',
+            'bank_logo' => 'nullable|image|max:2048',
+            'qris_logo' => 'nullable|image|max:2048',
+            'payhook_enabled' => 'boolean',
+            'payhook_base_url' => 'nullable|url|max:255',
+            'payhook_channel_type' => 'nullable|string|max:50',
+            'payhook_api_key' => 'nullable|string|max:255',
+            'payhook_webhook_secret' => 'nullable|string|max:255',
         ]);
 
         $setting = SiteSetting::findOrFail($this->settingId);
@@ -100,7 +124,18 @@ new class extends Component
             'welcome_enabled' => $this->welcome_enabled,
             'welcome_title' => trim((string) $this->welcome_title) ?: null,
             'welcome_message' => trim((string) $this->welcome_message) ?: null,
+            'payhook_enabled' => $this->payhook_enabled,
+            'payhook_base_url' => trim((string) $this->payhook_base_url) ?: null,
+            'payhook_channel_type' => trim((string) $this->payhook_channel_type) ?: 'qris',
         ];
+
+        // Kredensial hanya diperbarui bila admin mengetiknya (write-only, terenkripsi).
+        if (filled($this->payhook_api_key)) {
+            $data['payhook_api_key'] = trim($this->payhook_api_key);
+        }
+        if (filled($this->payhook_webhook_secret)) {
+            $data['payhook_webhook_secret'] = trim($this->payhook_webhook_secret);
+        }
 
         if ($this->logo) {
             ImageConverter::delete($setting->logo_path);
@@ -122,13 +157,25 @@ new class extends Component
             $data['og_image_path'] = ImageConverter::storeOriginal($this->og_image, 'site');
         }
 
+        if ($this->bank_logo) {
+            ImageConverter::delete($setting->bank_logo_path);
+            $data['bank_logo_path'] = ImageConverter::storeAsWebp($this->bank_logo, 'site', 256);
+        }
+
+        if ($this->qris_logo) {
+            ImageConverter::delete($setting->qris_logo_path);
+            $data['qris_logo_path'] = ImageConverter::storeAsWebp($this->qris_logo, 'site', 256);
+        }
+
         $setting->update($data);
 
-        $this->reset(['logo', 'favicon', 'hero_banner', 'og_image']);
+        $this->reset(['logo', 'favicon', 'hero_banner', 'og_image', 'bank_logo', 'qris_logo', 'payhook_api_key', 'payhook_webhook_secret']);
         $this->logo_path = $setting->logo_path;
         $this->favicon_path = $setting->favicon_path;
         $this->hero_banner_path = $setting->hero_banner_path;
         $this->og_image_path = $setting->og_image_path;
+        $this->bank_logo_path = $setting->bank_logo_path;
+        $this->qris_logo_path = $setting->qris_logo_path;
         $this->success_message = 'Pengaturan website berhasil disimpan.';
     }
 
@@ -185,13 +232,31 @@ new class extends Component
 
     public function with(): array
     {
+        $setting = SiteSetting::current();
+
         return [
             'logoUrl' => $this->logo_path ? '/storage/' . ltrim($this->logo_path, '/') : null,
             'faviconUrl' => $this->favicon_path ? '/storage/' . ltrim($this->favicon_path, '/') : null,
             'bannerUrl' => $this->hero_banner_path ? '/storage/' . ltrim($this->hero_banner_path, '/') : null,
             'ogImageUrl' => $this->og_image_path ? '/storage/' . ltrim($this->og_image_path, '/') : null,
+            'bankLogoUrl' => $this->bank_logo_path ? '/storage/' . ltrim($this->bank_logo_path, '/') : null,
+            'qrisLogoUrl' => $this->qris_logo_path ? '/storage/' . ltrim($this->qris_logo_path, '/') : null,
             'tracks' => MusicTrack::orderBy('sort_order')->get(),
+            'payhookApiKeyMasked' => $this->maskSecret($setting->payhook_api_key),
+            'payhookSecretMasked' => $this->maskSecret($setting->payhook_webhook_secret),
+            'payhookCallbackUrl' => url('/webhook/payhook'),
         ];
+    }
+
+    protected function maskSecret(?string $secret): ?string
+    {
+        if (! $secret) {
+            return null;
+        }
+
+        $visible = min(4, strlen($secret));
+
+        return str_repeat('•', max(0, strlen($secret) - $visible)) . substr($secret, -$visible);
     }
 };
 ?>
@@ -339,6 +404,88 @@ new class extends Component
                     <label class="mb-1 block text-xs font-semibold text-slate-600">Atas Nama</label>
                     <input type="text" wire:model="bank_account_holder" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="Panitia RT 07">
                     @error('bank_account_holder') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-xs font-semibold text-slate-600">Logo Bank <span class="text-slate-400">(tampil pada pilihan metode Transfer di Form Warga)</span></label>
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2">
+                            @if ($bank_logo)
+                                <img src="{{ $bank_logo->temporaryUrl() }}" class="max-h-full max-w-full object-contain">
+                            @elseif ($bankLogoUrl)
+                                <img src="{{ $bankLogoUrl }}" class="max-h-full max-w-full object-contain">
+                            @else
+                                <span class="text-center text-[11px] text-slate-400">Logo bank</span>
+                            @endif
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <input type="file" wire:model="bank_logo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                            <div wire:loading wire:target="bank_logo" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
+                            @error('bank_logo') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                            @if ($bankLogoUrl) <button type="button" wire:click="removeImage('bank_logo')" class="mt-1 text-xs text-red-500 hover:underline">Hapus logo bank</button> @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
+                <span class="h-4 w-2 rounded bg-red-600"></span> Pembayaran QRIS (PayHook)
+            </h3>
+
+            <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model="payhook_enabled" class="mt-0.5 h-5 w-5 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                <span class="text-sm text-slate-700">Aktifkan pembayaran iuran via <b>QRIS dinamis</b>. Saat aktif, warga bisa memilih metode "QRIS" di Form Warga dan langsung mendapat QR pembayaran.</span>
+            </label>
+
+            <div class="mt-5 grid gap-4 md:grid-cols-2">
+                <div class="md:col-span-2">
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Base URL API</label>
+                    <input type="url" wire:model="payhook_base_url" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="https://cekbayar.com/api/v1">
+                    <p class="mt-1 text-xs text-slate-400">Sertakan sampai <span class="font-mono">/api/v1</span>. Endpoint invoice dipanggil di <span class="font-mono">{base}/invoices</span>.</p>
+                    @error('payhook_base_url') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">API Key (Production)</label>
+                    <input type="password" wire:model="payhook_api_key" autocomplete="new-password" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="{{ $payhookApiKeyMasked ? 'Tersimpan: ' . $payhookApiKeyMasked : 'Tempel API key di sini' }}">
+                    <p class="mt-1 text-xs text-slate-400">{{ $payhookApiKeyMasked ? 'Sudah tersimpan. Kosongkan untuk mempertahankan.' : 'Belum diisi.' }}</p>
+                    @error('payhook_api_key') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Webhook Secret</label>
+                    <input type="password" wire:model="payhook_webhook_secret" autocomplete="new-password" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="{{ $payhookSecretMasked ? 'Tersimpan: ' . $payhookSecretMasked : 'Secret untuk verifikasi webhook' }}">
+                    <p class="mt-1 text-xs text-slate-400">{{ $payhookSecretMasked ? 'Sudah tersimpan. Kosongkan untuk mempertahankan.' : 'Harus sama dengan yang diset di dashboard PayHook.' }}</p>
+                    @error('payhook_webhook_secret') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Channel Type</label>
+                    <input type="text" wire:model="payhook_channel_type" class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="qris">
+                    @error('payhook_channel_type') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-semibold text-slate-600">Callback / Webhook URL</label>
+                    <input type="text" readonly value="{{ $payhookCallbackUrl }}" onclick="this.select()" class="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-xs text-slate-600 focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                    <p class="mt-1 text-xs text-slate-400">Salin URL ini ke setelan webhook/callback di dashboard PayHook, pakai <b>Webhook Secret</b> yang sama.</p>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="mb-2 block text-xs font-semibold text-slate-600">Logo QRIS <span class="text-slate-400">(tampil pada pilihan metode QRIS di Form Warga)</span></label>
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-16 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50 p-2">
+                            @if ($qris_logo)
+                                <img src="{{ $qris_logo->temporaryUrl() }}" class="max-h-full max-w-full object-contain">
+                            @elseif ($qrisLogoUrl)
+                                <img src="{{ $qrisLogoUrl }}" class="max-h-full max-w-full object-contain">
+                            @else
+                                <span class="text-center text-[11px] text-slate-400">Logo QRIS</span>
+                            @endif
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <input type="file" wire:model="qris_logo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                            <div wire:loading wire:target="qris_logo" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
+                            @error('qris_logo') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                            @if ($qrisLogoUrl) <button type="button" wire:click="removeImage('qris_logo')" class="mt-1 text-xs text-red-500 hover:underline">Hapus logo QRIS</button> @endif
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

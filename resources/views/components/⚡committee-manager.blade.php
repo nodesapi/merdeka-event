@@ -1,11 +1,15 @@
 <?php
 
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use App\Models\CommitteeMember;
 use App\Models\Event;
+use App\Support\ImageConverter;
 
 new class extends Component
 {
+    use WithFileUploads;
+
     public ?string $editingId = null;
 
     public $name = '';
@@ -14,6 +18,9 @@ new class extends Component
     public $resident_block = '';
     public $phone_number = '';
     public $sort_order = 0;
+
+    public $photo;
+    public ?string $photoPath = null;
 
     public $success_message = '';
 
@@ -26,6 +33,7 @@ new class extends Component
             'resident_block' => 'nullable|string|max:100',
             'phone_number' => 'nullable|string|max:50',
             'sort_order' => 'nullable|integer|min:0|max:999',
+            'photo' => 'nullable|image|max:4096',
         ];
     }
 
@@ -38,6 +46,7 @@ new class extends Component
     public function save()
     {
         $data = $this->validate();
+        unset($data['photo']);
 
         $event = $this->activeEvent();
         if (! $event) {
@@ -46,6 +55,11 @@ new class extends Component
         }
 
         $data['sort_order'] = $this->sort_order ?: 0;
+
+        if ($this->photo) {
+            ImageConverter::delete($this->photoPath);
+            $data['photo'] = ImageConverter::storeAsWebp($this->photo, 'committee', 512);
+        }
 
         if ($this->editingId) {
             CommitteeMember::where('id', $this->editingId)->update($data);
@@ -71,20 +85,36 @@ new class extends Component
         $this->resident_block = $member->resident_block;
         $this->phone_number = $member->phone_number;
         $this->sort_order = $member->sort_order;
+        $this->photoPath = $member->photo;
+        $this->reset('photo');
     }
 
     public function delete(string $id)
     {
-        CommitteeMember::where('id', $id)->delete();
+        $member = CommitteeMember::find($id);
+        if ($member) {
+            ImageConverter::delete($member->photo);
+            $member->delete();
+        }
         if ($this->editingId === $id) {
             $this->resetForm();
         }
         $this->success_message = 'Data panitia berhasil dihapus.';
     }
 
+    public function removePhoto()
+    {
+        ImageConverter::delete($this->photoPath);
+        if ($this->editingId) {
+            CommitteeMember::where('id', $this->editingId)->update(['photo' => null]);
+        }
+        $this->photoPath = null;
+        $this->reset('photo');
+    }
+
     public function resetForm()
     {
-        $this->reset(['editingId', 'name', 'position', 'resident_block', 'phone_number', 'sort_order']);
+        $this->reset(['editingId', 'name', 'position', 'resident_block', 'phone_number', 'sort_order', 'photo', 'photoPath']);
         $this->level = 3;
         $this->sort_order = 0;
     }
@@ -128,6 +158,30 @@ new class extends Component
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap</label>
                     <input type="text" wire:model="name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Nama panitia">
                     @error('name') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Foto Profil <span class="text-slate-400 font-normal">(opsional)</span></label>
+                    <div class="flex items-center gap-3">
+                        <div class="h-16 w-16 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-50">
+                            @if ($photo)
+                                <img src="{{ $photo->temporaryUrl() }}" class="h-full w-full object-cover">
+                            @elseif ($photoPath)
+                                <img src="{{ '/storage/' . ltrim($photoPath, '/') }}" class="h-full w-full object-cover">
+                            @else
+                                <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-600 to-red-800 text-lg font-black text-white">
+                                    {{ $name ? strtoupper(substr($name, 0, 1)) : '?' }}
+                                </div>
+                            @endif
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <input type="file" wire:model="photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                            <div wire:loading wire:target="photo" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
+                            @error('photo') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                            @if ($photoPath)
+                                <button type="button" wire:click="removePhoto" class="mt-1 text-xs text-red-500 hover:underline">Hapus foto</button>
+                            @endif
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Jabatan</label>
@@ -193,7 +247,17 @@ new class extends Component
             <div class="divide-y divide-slate-100">
                 @forelse ($members as $member)
                     <div class="flex items-center justify-between gap-3 py-3">
-                        <div class="min-w-0">
+                        <div class="flex min-w-0 items-center gap-3">
+                            <div class="h-10 w-10 shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-50">
+                                @if ($member->photo_url)
+                                    <img src="{{ $member->photo_url }}" alt="{{ $member->name }}" class="h-full w-full object-cover">
+                                @else
+                                    <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-600 to-red-800 text-sm font-black text-white">
+                                        {{ strtoupper(substr($member->name, 0, 1)) }}
+                                    </div>
+                                @endif
+                            </div>
+                            <div class="min-w-0">
                             <div class="flex flex-wrap items-center gap-2">
                                 <span class="text-xs px-2 py-0.5 bg-red-50 text-red-700 rounded border border-red-100 font-semibold">{{ $member->position }}</span>
                                 <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-500 rounded">{{ $levelLabels[$member->level] ?? 'Seksi' }}</span>
@@ -201,6 +265,7 @@ new class extends Component
                             </div>
                             <p class="mt-1 font-medium text-slate-900 truncate">{{ $member->name }}</p>
                             <p class="text-xs text-slate-500">{{ $member->resident_block ?: '-' }} · {{ $member->phone_number ?: '-' }}</p>
+                            </div>
                         </div>
                         <div class="flex shrink-0 gap-2">
                             <button wire:click="edit('{{ $member->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>

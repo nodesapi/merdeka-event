@@ -3,12 +3,20 @@
 use App\Models\Event;
 use App\Models\FamilyMember;
 use App\Models\FamilySubmission;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 new class extends Component
 {
     public string $search = '';
     public string $success_message = '';
+
+    // Form "Tambah Anggota" per keluarga (tanpa iuran tambahan).
+    public ?string $addingToId = null;
+    public string $newMemberName = '';
+    public string $newMemberRelationship = 'anak';
+    public $newMemberAge = null;
+    public string $newMemberGender = '';
 
     protected function activeEvent(): ?Event
     {
@@ -23,6 +31,60 @@ new class extends Component
         $this->success_message = 'Data warga (pendaftaran keluarga) dihapus.';
     }
 
+    public function startAdd(string $submissionId): void
+    {
+        $this->addingToId = $submissionId;
+        $this->reset(['newMemberName', 'newMemberAge', 'newMemberGender']);
+        $this->newMemberRelationship = 'anak';
+        $this->resetErrorBag();
+    }
+
+    public function cancelAdd(): void
+    {
+        $this->addingToId = null;
+        $this->reset(['newMemberName', 'newMemberAge', 'newMemberGender']);
+    }
+
+    /**
+     * Tambah anggota ke keluarga yang sudah terdaftar — dapat No. Daftar baru
+     * (lanjut nomor urut tertinggi di acara ini), TANPA iuran tambahan.
+     */
+    public function addMember(): void
+    {
+        $submission = FamilySubmission::find($this->addingToId);
+
+        if (! $submission) {
+            $this->addingToId = null;
+            return;
+        }
+
+        $this->validate([
+            'newMemberName' => 'required|string|max:255',
+            'newMemberRelationship' => 'required|in:ayah,ibu,anak,lainnya',
+            'newMemberAge' => 'nullable|integer|min:0|max:120',
+            'newMemberGender' => 'nullable|in:L,P',
+        ], [], ['newMemberName' => 'nama anggota']);
+
+        // No. Daftar mengikuti nomor terakhir (tertinggi) di acara ini, lalu +1.
+        $sequence = (int) FamilyMember::where('event_id', $submission->event_id)
+            ->max(DB::raw('CAST(registration_number AS INTEGER)'));
+        $registrationNumber = str_pad((string) ($sequence + 1), 4, '0', STR_PAD_LEFT);
+
+        FamilyMember::create([
+            'family_submission_id' => $submission->id,
+            'event_id' => $submission->event_id,
+            'registration_number' => $registrationNumber,
+            'name' => $this->newMemberName,
+            'relationship' => $this->newMemberRelationship,
+            'age' => ($this->newMemberAge !== null && $this->newMemberAge !== '') ? (int) $this->newMemberAge : null,
+            'gender' => $this->newMemberGender ?: null,
+        ]);
+
+        $name = $this->newMemberName;
+        $this->cancelAdd();
+        $this->success_message = 'Anggota "' . $name . '" ditambahkan ke keluarga ' . $submission->head_of_family_name . ' dengan No. Daftar ' . $registrationNumber . ' (tanpa iuran tambahan).';
+    }
+
     public function dismissAlert(): void
     {
         $this->success_message = '';
@@ -34,8 +96,13 @@ new class extends Component
 
         $scoped = fn ($query) => $event ? $query->where('event_id', $event->id) : $query;
 
+        // Data Warga hanya memuat pendaftaran yang belum/valid — pengajuan yang DITOLAK
+        // tidak dianggap warga, jadi dikecualikan dari daftar & rekap.
+        $notRejected = fn ($q) => $q->where('status', '!=', 'rejected');
+
         $query = FamilySubmission::query()
             ->tap($scoped)
+            ->tap($notRejected)
             ->with(['familyMembers' => fn ($q) => $q->withCount('competitionParticipations')->orderBy('registration_number')])
             ->latest();
 
@@ -48,11 +115,13 @@ new class extends Component
             });
         }
 
+        $memberNotRejected = fn ($q) => $q->whereHas('familySubmission', $notRejected);
+
         return [
             'submissions' => $query->take(100)->get(),
-            'totalHouseholds' => FamilySubmission::query()->tap($scoped)->count(),
-            'totalMembers' => FamilyMember::query()->tap($scoped)->count(),
-            'totalChildren' => FamilyMember::query()->tap($scoped)->where('relationship', 'anak')->count(),
+            'totalHouseholds' => FamilySubmission::query()->tap($scoped)->tap($notRejected)->count(),
+            'totalMembers' => FamilyMember::query()->tap($scoped)->tap($memberNotRejected)->count(),
+            'totalChildren' => FamilyMember::query()->tap($scoped)->tap($memberNotRejected)->where('relationship', 'anak')->count(),
             'activeEventName' => $event?->name,
         ];
     }
@@ -137,6 +206,7 @@ new class extends Component
                                         @else
                                             <span class="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Menunggu</span>
                                         @endif
+                                        <button wire:click="startAdd('{{ $submission->id }}')" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">+ Tambah Anggota</button>
                                         <button wire:click="delete('{{ $submission->id }}')" wire:confirm="Hapus data warga ini beserta seluruh anggotanya? Tindakan ini tidak bisa dibatalkan." class="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus Keluarga</button>
                                     </div>
                                 </div>
@@ -166,6 +236,33 @@ new class extends Component
                                 </td>
                             </tr>
                         @endforeach
+
+                        {{-- Form tambah anggota (muncul saat "+ Tambah Anggota" diklik untuk keluarga ini) --}}
+                        @if ($addingToId === $submission->id)
+                            <tr class="bg-emerald-50/40">
+                                <td colspan="6" class="px-4 py-3">
+                                    <p class="mb-2 text-xs font-semibold text-slate-600">Tambah anggota ke keluarga {{ $submission->head_of_family_name }} <span class="font-normal text-slate-400">— No. Daftar baru (lanjut nomor terakhir), tanpa iuran</span></p>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <input type="text" wire:model="newMemberName" placeholder="Nama anggota" class="min-w-[160px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                        <select wire:model="newMemberRelationship" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                            <option value="ayah">Ayah</option>
+                                            <option value="ibu">Ibu</option>
+                                            <option value="anak">Anak</option>
+                                            <option value="lainnya">Lainnya</option>
+                                        </select>
+                                        <select wire:model="newMemberGender" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                            <option value="">L/P</option>
+                                            <option value="L">Laki-laki</option>
+                                            <option value="P">Perempuan</option>
+                                        </select>
+                                        <input type="number" wire:model="newMemberAge" placeholder="Umur" class="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                        <button wire:click="addMember" class="rounded-lg bg-red-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-800">Tambah</button>
+                                        <button wire:click="cancelAdd" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">Batal</button>
+                                    </div>
+                                    @error('newMemberName') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                </td>
+                            </tr>
+                        @endif
                     </tbody>
                 @empty
                     <tbody>

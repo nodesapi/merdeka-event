@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\PaymentWebhookController;
 use App\Http\Controllers\PublicController;
 use App\Models\Competition;
 use Illuminate\Support\Facades\Route;
@@ -19,11 +20,21 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/transparansi', 'finance')->name('public.finance');
     Route::get('/form-warga', 'familyForm')->name('public.family-form');
     Route::post('/form-warga', 'storeFamilyForm')->name('public.family-form.store');
+    Route::get('/form-warga/{submission:reference_code}/qris', 'qrisPayment')->name('public.qris-payment');
+    Route::get('/form-warga/{submission:reference_code}/status', 'qrisStatus')->name('public.qris-status');
+    Route::get('/form-warga/{submission:reference_code}/bukti', 'registrationReceipt')->name('public.registration-receipt');
     Route::get('/daftar-lomba', 'lombaForm')->name('public.lomba-register');
     Route::get('/daftar-lomba/cari', 'lombaLookup')->name('public.lomba-register.lookup');
     Route::post('/daftar-lomba', 'storeLombaForm')->name('public.lomba-register.store');
     Route::get('/syarat-ketentuan', 'terms')->name('public.terms');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Payment webhook (PayHook / cekbayar.com) — publik, diverifikasi HMAC
+|--------------------------------------------------------------------------
+*/
+Route::post('/webhook/payhook', [PaymentWebhookController::class, 'handle'])->name('webhook.payhook');
 
 /*
 |--------------------------------------------------------------------------
