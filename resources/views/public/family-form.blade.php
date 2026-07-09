@@ -80,11 +80,6 @@
                         @error('phone_number') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Email <span class="font-medium normal-case text-stone-400">(opsional)</span></label>
-                        <input type="email" name="email" value="{{ old('email') }}" class="mt-2 w-full rounded-xl border border-stone-300 px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Opsional, boleh dikosongkan">
-                        @error('email') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
                         <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Umur Kepala Keluarga</label>
                         <input type="number" name="head_of_family_age" value="{{ old('head_of_family_age') }}" min="0" max="120" class="mt-2 w-full rounded-xl border border-stone-300 px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Contoh: 40">
                         @error('head_of_family_age') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
@@ -110,9 +105,6 @@
                     @php
                         $defaultMembers = [
                             ['name' => '', 'relationship' => 'ibu', 'age' => '', 'gender' => 'P'],
-                            ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
-                            ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
-                            ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
                             ['name' => '', 'relationship' => 'anak', 'age' => '', 'gender' => ''],
                         ];
                         $oldMembers = old('members', $defaultMembers);
@@ -162,8 +154,8 @@
 
                 @error('members') <span class="mt-2 block text-xs text-red-600">{{ $message }}</span> @enderror
 
-                <div class="mt-4 flex justify-center sm:justify-start">
-                    <button type="button" class="rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-800" data-add-member>+ Tambah Anggota</button>
+                <div class="mt-4">
+                    <button type="button" class="w-full rounded-xl bg-red-700 px-5 py-2.5 text-sm font-bold text-white hover:bg-red-800 sm:w-auto" data-add-member>+ Tambah Anggota</button>
                 </div>
 
                 <template id="member-template">
@@ -254,57 +246,19 @@
                         @endif
 
                         <label class="relative block cursor-pointer">
-                            <input type="radio" name="payment_method" value="transfer" class="peer sr-only" @checked(old('payment_method') === 'transfer') data-payment-radio>
-                            <div class="flex h-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-3 transition peer-checked:border-red-500 peer-checked:bg-red-50/40 hover:border-red-300">
-                                <div class="flex h-12 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-stone-200 bg-white p-1">
-                                    @if ($site?->bank_logo_url)
-                                        <img src="{{ $site->bank_logo_url }}" alt="{{ $site->bank_name }}" class="max-h-full max-w-full object-contain">
-                                    @else
-                                        <span class="text-xs font-black text-stone-700">{{ $site?->bank_name ?: 'BANK' }}</span>
-                                    @endif
-                                </div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold text-stone-900">Transfer Bank</p>
-                                    <p class="truncate text-xs text-stone-500">{{ $site?->bank_name ?: 'Transfer' }} · unggah bukti</p>
-                                </div>
-                            </div>
-                        </label>
-
-                        <label class="relative block cursor-pointer">
                             <input type="radio" name="payment_method" value="cash" class="peer sr-only" @checked(old('payment_method') === 'cash') data-payment-radio>
                             <div class="flex h-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-3 transition peer-checked:border-red-500 peer-checked:bg-red-50/40 hover:border-red-300">
-                                <div class="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xl">💵</div>
+                                <div class="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50">
+                                    <x-icon name="cash" class="h-6 w-6 text-emerald-700" />
+                                </div>
                                 <div class="min-w-0">
                                     <p class="text-sm font-bold text-stone-900">Tunai</p>
                                     <p class="text-xs text-stone-500">Bayar langsung ke panitia</p>
                                 </div>
                             </div>
                         </label>
-
-                        <label class="relative block cursor-pointer">
-                            <input type="radio" name="payment_method" value="other" class="peer sr-only" @checked(old('payment_method') === 'other') data-payment-radio>
-                            <div class="flex h-full items-center gap-3 rounded-2xl border-2 border-stone-200 bg-white p-3 transition peer-checked:border-red-500 peer-checked:bg-red-50/40 hover:border-red-300">
-                                <div class="flex h-12 w-16 shrink-0 items-center justify-center rounded-lg border border-stone-200 bg-stone-50 text-xl">🧾</div>
-                                <div class="min-w-0">
-                                    <p class="text-sm font-bold text-stone-900">Lainnya</p>
-                                    <p class="text-xs text-stone-500">Metode lain / catat manual</p>
-                                </div>
-                            </div>
-                        </label>
                     </div>
                     @error('payment_method') <span class="mt-2 block text-xs text-red-600">{{ $message }}</span> @enderror
-
-                    {{-- Panel khusus TRANSFER: rekening tujuan (muncul hanya saat Transfer dipilih). --}}
-                    @if ($site?->bank_account_number)
-                        <div class="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-center shadow-sm" data-transfer-info hidden>
-                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-emerald-700">Rekening Tujuan Transfer</p>
-                            <p class="mt-2 text-lg font-extrabold text-emerald-950">{{ $site->bank_name ?: 'Bank' }} · {{ $site->bank_account_number }}</p>
-                            @if ($site->bank_account_holder)
-                                <p class="mt-1 text-sm text-emerald-800">a/n {{ $site->bank_account_holder }}</p>
-                            @endif
-                            <p class="mt-3 text-sm leading-6 text-emerald-800">Transfer ke rekening di atas, lalu unggah bukti pembayarannya di bawah.</p>
-                        </div>
-                    @endif
 
                     {{-- Panel khusus QRIS: info QR muncul setelah kirim (QR dinamis dibuat saat submit). --}}
                     @if ($site?->payhook_enabled)
@@ -341,18 +295,15 @@
                         if (!picker) return;
                         const proofBlock = picker.querySelector('[data-proof-block]');
                         const qrisInfo = picker.querySelector('[data-qris-info]');
-                        const transferInfo = picker.querySelector('[data-transfer-info]');
                         const radios = picker.querySelectorAll('[data-payment-radio]');
 
                         function sync() {
                             const selected = picker.querySelector('[data-payment-radio]:checked');
                             const method = selected ? selected.value : null;
                             const isQris = method === 'qris';
-                            const isTransfer = method === 'transfer';
-                            // QRIS tak perlu bukti; metode lain (transfer/tunai/lainnya) tampilkan bukti.
+                            // QRIS tak perlu bukti; Tunai tampilkan bukti.
                             if (proofBlock) proofBlock.classList.toggle('hidden', isQris);
                             if (qrisInfo) qrisInfo.hidden = !isQris;
-                            if (transferInfo) transferInfo.hidden = !isTransfer;
                         }
                         radios.forEach(r => r.addEventListener('change', sync));
                         sync();

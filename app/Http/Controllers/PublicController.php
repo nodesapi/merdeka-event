@@ -15,6 +15,7 @@ use App\Support\PayHook;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -61,6 +62,14 @@ class PublicController extends Controller
                 ->get()
             : collect();
 
+        $schedules = $event
+            ? $event->eventSchedules()->orderBy('sort_order')->orderBy('time_label')->take(5)->get()
+            : collect();
+
+        $goodyBagItems = $event
+            ? $event->goodyBagItems()->orderBy('sort_order')->orderBy('name')->get()
+            : collect();
+
         return view('public.home', [
             'event' => $event,
             'committeeCount' => $event ? $event->committeeMembers()->where('is_active', true)->count() : 0,
@@ -69,6 +78,22 @@ class PublicController extends Controller
             'totalIncome' => $totalIncome,
             'totalExpense' => $totalExpense,
             'balance' => $totalIncome - $totalExpense,
+            'schedules' => $schedules,
+            'goodyBagItems' => $goodyBagItems,
+        ]);
+    }
+
+    public function schedule(): View
+    {
+        $event = $this->activeEvent();
+
+        $schedules = $event
+            ? $event->eventSchedules()->orderBy('sort_order')->orderBy('time_label')->get()
+            : collect();
+
+        return view('public.schedule', [
+            'event' => $event,
+            'schedules' => $schedules,
         ]);
     }
 
@@ -158,6 +183,92 @@ class PublicController extends Controller
         return view('public.terms', [
             'event' => $this->activeEvent(),
         ]);
+    }
+
+    public function galeri(): View
+    {
+        $extensions = ['jpg', 'jpeg', 'png', 'webp'];
+
+        $photos = collect(Storage::disk('public')->files('galeri'))
+            ->filter(fn (string $path) => in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $extensions, true))
+            ->sort(fn (string $a, string $b) => strnatcasecmp($a, $b))
+            ->values()
+            ->map(function (string $path) {
+                $filename = basename($path);
+
+                return [
+                    // Root-relative & URL-encoded so it resolves on any host/port and handles filenames with spaces/parentheses.
+                    'full' => '/storage/' . implode('/', array_map('rawurlencode', explode('/', $path))),
+                    'thumb' => route('public.galeri.thumb', ['filename' => $filename]),
+                ];
+            });
+
+        return view('public.galeri', [
+            'event' => $this->activeEvent(),
+            'photos' => $photos,
+        ]);
+    }
+
+    /**
+     * Serve a resized/compressed copy of a galeri photo, generating it on first request.
+     * Originals can be several MB each (raw WhatsApp exports), which made the grid load sluggishly.
+     */
+    public function galeriThumbnail(string $filename): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        $sourceRelative = 'galeri/'.$filename;
+
+        abort_unless(Storage::disk('public')->exists($sourceRelative), 404);
+
+        $thumbRelative = 'galeri-thumbs/'.$filename;
+        $thumbPath = Storage::disk('public')->path($thumbRelative);
+
+        if (! Storage::disk('public')->exists($thumbRelative)) {
+            Storage::disk('public')->makeDirectory('galeri-thumbs');
+            $this->makeGaleriThumbnail(Storage::disk('public')->path($sourceRelative), $thumbPath);
+        }
+
+        return response()->file($thumbPath, ['Cache-Control' => 'public, max-age=31536000, immutable']);
+    }
+
+    protected function makeGaleriThumbnail(string $sourcePath, string $destPath, int $maxDimension = 640): void
+    {
+        $info = @getimagesize($sourcePath);
+
+        $image = match ($info[2] ?? null) {
+            IMAGETYPE_JPEG => @imagecreatefromjpeg($sourcePath),
+            IMAGETYPE_PNG => @imagecreatefrompng($sourcePath),
+            IMAGETYPE_WEBP => @imagecreatefromwebp($sourcePath),
+            default => null,
+        };
+
+        if (! $image) {
+            copy($sourcePath, $destPath);
+
+            return;
+        }
+
+        if (function_exists('exif_read_data') && ($info[2] ?? null) === IMAGETYPE_JPEG) {
+            $orientation = (@exif_read_data($sourcePath) ?: [])['Orientation'] ?? null;
+            $image = match ($orientation) {
+                3 => imagerotate($image, 180, 0),
+                6 => imagerotate($image, -90, 0),
+                8 => imagerotate($image, 90, 0),
+                default => $image,
+            };
+        }
+
+        $width = imagesx($image);
+        $height = imagesy($image);
+        $ratio = min(1, $maxDimension / max($width, $height));
+        $newWidth = max(1, (int) round($width * $ratio));
+        $newHeight = max(1, (int) round($height * $ratio));
+
+        $thumb = imagecreatetruecolor($newWidth, $newHeight);
+        imagecopyresampled($thumb, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+        imagejpeg($thumb, $destPath, 72);
+
+        imagedestroy($image);
+        imagedestroy($thumb);
     }
 
     public function storeFamilyForm(Request $request): RedirectResponse

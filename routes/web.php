@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::controller(PublicController::class)->group(function () {
     Route::get('/', 'home')->name('public.home');
     Route::get('/panitia', 'committee')->name('public.committee');
+    Route::get('/susunan-acara', 'schedule')->name('public.schedule');
     Route::get('/lomba', 'competitions')->name('public.competitions');
     Route::get('/lomba/{competition:slug}', 'competitionShow')->name('public.competition.show');
     Route::get('/transparansi', 'finance')->name('public.finance');
@@ -27,6 +28,8 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/daftar-lomba/cari', 'lombaLookup')->name('public.lomba-register.lookup');
     Route::post('/daftar-lomba', 'storeLombaForm')->name('public.lomba-register.store');
     Route::get('/syarat-ketentuan', 'terms')->name('public.terms');
+    Route::get('/galeri', 'galeri')->name('public.galeri');
+    Route::get('/galeri/thumb/{filename}', 'galeriThumbnail')->name('public.galeri.thumb');
 });
 
 /*
@@ -56,6 +59,8 @@ Route::middleware(['auth', 'role:admin|panitia'])
     ->group(function () {
         Route::view('/', 'dashboard')->name('dashboard');
         Route::view('/acara', 'admin.event')->name('event');
+        Route::view('/susunan-acara', 'admin.schedule')->name('schedule');
+        Route::view('/goody-bag', 'admin.goody-bag')->name('goody-bag');
         Route::view('/panitia', 'admin.committee')->name('committee');
         Route::view('/lomba', 'admin.competitions')->name('competitions');
         Route::get('/peserta', function () {

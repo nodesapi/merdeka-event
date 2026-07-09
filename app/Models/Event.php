@@ -41,6 +41,16 @@ class Event extends Model
         return $this->hasMany(FamilySubmission::class);
     }
 
+    public function eventSchedules(): HasMany
+    {
+        return $this->hasMany(EventSchedule::class);
+    }
+
+    public function goodyBagItems(): HasMany
+    {
+        return $this->hasMany(GoodyBagItem::class);
+    }
+
     /**
      * Get the route key for the model.
      */

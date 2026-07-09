@@ -43,15 +43,18 @@
                             {{ $event?->description ?? 'Panggung informasi warga untuk melihat susunan panitia, jenis lomba, jalannya babak, hingga arus dana secara terbuka.' }}
                         </p>
 
-                        <div class="mt-7 flex flex-wrap justify-center gap-3 md:justify-start">
-                            <a href="{{ route('public.family-form') }}" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
-                                <x-icon name="users" class="h-4 w-4" /> Isi Form Warga
+                        <div class="mt-7 grid grid-cols-2 gap-3">
+                            <a href="{{ route('public.family-form') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
+                                <x-icon name="users" class="h-4 w-4 shrink-0" /> Isi Form Warga
                             </a>
-                            <a href="{{ route('public.competitions') }}" class="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
-                                <x-icon name="trophy" class="h-4 w-4" /> Lihat Jenis Lomba
+                            <a href="{{ route('public.competitions') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
+                                <x-icon name="trophy" class="h-4 w-4 shrink-0" /> Lihat Lomba
                             </a>
-                            <a href="{{ route('public.committee') }}" class="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/5 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">
+                            <a href="{{ route('public.committee') }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15">
                                 Susunan Panitia
+                            </a>
+                            <a href="{{ route('public.galeri') }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15">
+                                <x-icon name="image" class="h-4 w-4 shrink-0" /> Keseruan HUT RI
                             </a>
                         </div>
 
@@ -147,6 +150,64 @@
             </a>
         @endforeach
     </section>
+
+    @if ($schedules->isNotEmpty())
+        <section class="mt-10">
+            <div class="flex flex-col items-center gap-2 text-center md:flex-row md:items-end md:justify-between md:gap-3 md:text-left">
+                <div class="flex items-center gap-3">
+                    <span class="hidden h-7 w-1.5 rounded-full bg-red-600 md:block"></span>
+                    <div>
+                        <h2 class="text-xl font-black tracking-tight text-stone-900">Susunan Acara</h2>
+                        <p class="text-sm text-stone-500">Rundown kegiatan hari-H.</p>
+                    </div>
+                </div>
+                <a href="{{ route('public.schedule') }}" class="group inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-red-700 hover:underline">Lihat semua <x-icon name="arrow-right" class="h-4 w-4 transition group-hover:translate-x-0.5" /></a>
+            </div>
+
+            <div class="merdeka-card mt-5 divide-y divide-stone-100 p-0">
+                @foreach ($schedules as $item)
+                    <div class="flex items-center gap-4 p-4">
+                        <span class="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-black tabular-nums text-red-700">{{ $item->time_label }}</span>
+                        <p class="min-w-0 flex-1 text-left text-sm font-semibold leading-6 text-stone-800">{{ $item->activity }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if ($goodyBagItems->isNotEmpty())
+        <section class="mt-10">
+            <div class="flex flex-col items-center gap-2 text-center md:flex-row md:gap-3 md:text-left">
+                <span class="hidden h-7 w-1.5 rounded-full bg-red-600 md:block"></span>
+                <div>
+                    <h2 class="text-xl font-black tracking-tight text-stone-900">Goody Bag Peserta</h2>
+                    <p class="text-sm text-stone-500">Tukarkan No Daftar kamu ke panitia untuk dapat:</p>
+                </div>
+            </div>
+
+            <div class="mt-5 flex flex-wrap justify-center gap-3 sm:justify-start">
+                @foreach ($goodyBagItems as $item)
+                    <div class="merdeka-card flex w-full items-center gap-3 p-4 sm:w-[calc(50%-0.375rem)] lg:w-[calc(33.333%-0.5rem)]">
+                        <div class="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-stone-200 bg-stone-50">
+                            @if ($item->photo_url)
+                                <img src="{{ $item->photo_url }}" alt="{{ $item->name }}" class="h-full w-full object-cover">
+                            @else
+                                <div class="flex h-full w-full items-center justify-center bg-gradient-to-br from-red-500 to-red-700 text-white">
+                                    <x-icon name="gift" class="h-6 w-6" />
+                                </div>
+                            @endif
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-left text-sm font-black leading-5 text-stone-900">{{ $item->name }}</p>
+                            @if ($item->description)
+                                <p class="mt-0.5 line-clamp-2 text-left text-xs leading-5 text-stone-500">{{ $item->description }}</p>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </section>
+    @endif
 
     <section class="mt-10">
         <div class="flex flex-col items-center gap-2 text-center md:flex-row md:items-end md:justify-between md:gap-3 md:text-left">
