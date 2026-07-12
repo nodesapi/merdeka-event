@@ -24,9 +24,9 @@
         </div>
     @else
         {{-- ===================== DESKTOP: bagan bergaris ===================== --}}
-        <div class="relative left-1/2 mt-8 hidden w-screen -translate-x-1/2 lg:block">
+        <div class="mt-8 hidden lg:block">
             <div class="overflow-x-auto px-6 pb-4">
-                <div class="mx-auto w-max">
+                <div class="mx-auto w-full max-w-6xl">
                     {{-- Tier 1: Pimpinan --}}
                     @if ($tier1->isNotEmpty())
                         <div class="flex justify-center">
@@ -53,9 +53,9 @@
 
                     {{-- Tier 3: Koordinator & Seksi --}}
                     @if ($tier3->isNotEmpty())
-                        <div class="org-branch">
+                        <div class="org-leaves">
                             @foreach ($tier3 as $member)
-                                <div class="org-node"><x-committee-card :member="$member" class="w-52" /></div>
+                                <div class="org-leaf"><x-committee-card :member="$member" class="w-52" /></div>
                             @endforeach
                         </div>
                     @endif

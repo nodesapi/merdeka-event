@@ -288,6 +288,8 @@ class PublicController extends Controller
             'contribution_sponsor_amount' => $this->normalizeMoneyInput($request->input('contribution_sponsor_amount')),
         ]);
 
+        $minIuran = (float) ($event->recommended_contribution_amount ?? 0);
+
         $validated = $request->validate([
             'head_of_family_name' => ['required', 'string', 'max:255'],
             'head_of_family_age' => ['nullable', 'integer', 'min:0', 'max:120'],
@@ -299,7 +301,9 @@ class PublicController extends Controller
             'payment_method' => ['required', 'in:transfer,cash,other,qris'],
             'payment_notes' => ['nullable', 'string', 'max:1000'],
             'proof_file' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:4096'],
-            'contribution_iuran_amount' => ['nullable', 'numeric', 'min:0'],
+            'contribution_iuran_amount' => $minIuran > 0
+                ? ['required', 'numeric', 'min:' . $minIuran]
+                : ['nullable', 'numeric', 'min:0'],
             'contribution_iuran_note' => ['nullable', 'string', 'max:500'],
             'contribution_tambahan_amount' => ['nullable', 'numeric', 'min:0'],
             'contribution_tambahan_note' => ['nullable', 'string', 'max:500'],
@@ -317,6 +321,8 @@ class PublicController extends Controller
             'members.*.notes' => ['nullable', 'string', 'max:500'],
         ], [
             'terms.accepted' => 'Anda harus menyetujui Syarat & Ketentuan terlebih dahulu.',
+            'contribution_iuran_amount.required' => 'Nominal iuran wajib diisi, minimal Rp' . number_format($minIuran, 0, ',', '.') . '.',
+            'contribution_iuran_amount.min' => 'Nominal iuran tidak boleh kurang dari Rp' . number_format($minIuran, 0, ',', '.') . ' sesuai ketentuan panitia.',
         ]);
 
         // Cegah pendaftaran ganda: satu No. HP (dinormalisasi 0<->62) hanya boleh punya

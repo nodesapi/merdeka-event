@@ -148,6 +148,29 @@
         border-top-color: transparent;
     }
 
+    .org-leaves {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 1.5rem 0.75rem;
+    }
+
+    .org-leaf {
+        position: relative;
+        padding-top: 1.75rem;
+    }
+
+    .org-leaf::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 50%;
+        width: 2px;
+        height: 1.75rem;
+        background: #e0dfdb;
+        transform: translateX(-50%);
+    }
+
     .merdeka-native-control {
         position: absolute !important;
         width: 1px !important;

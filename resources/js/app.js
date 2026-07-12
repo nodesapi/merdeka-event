@@ -112,6 +112,21 @@ const bindRupiahInput = (container) => {
         return;
     }
 
+    const minDigits = (() => {
+        const raw = container.dataset.rupiahMin?.replace(/\D+/g, '') ?? '';
+        return raw === '' || raw === '0' ? null : raw;
+    })();
+
+    const clampToMin = (digits) => {
+        if (!minDigits) {
+            return digits;
+        }
+
+        const numeric = digits === '' ? 0 : parseInt(digits, 10);
+
+        return numeric < parseInt(minDigits, 10) ? minDigits : digits;
+    };
+
     const applyFormattedValue = (sourceValue) => {
         const digits = String(sourceValue ?? '')
             .replace(/\D+/g, '')
@@ -121,7 +136,7 @@ const bindRupiahInput = (container) => {
         syncHiddenValue(hiddenInput, digits);
     };
 
-    applyFormattedValue(hiddenInput.value || visibleInput.value);
+    applyFormattedValue(clampToMin(hiddenInput.value || visibleInput.value));
 
     visibleInput.addEventListener('input', () => {
         const previousDigits = countDigits(visibleInput.value.slice(0, visibleInput.selectionStart ?? visibleInput.value.length));
@@ -140,6 +155,11 @@ const bindRupiahInput = (container) => {
     });
 
     visibleInput.addEventListener('blur', () => {
+        const clamped = clampToMin(hiddenInput.value);
+        if (clamped !== hiddenInput.value) {
+            syncHiddenValue(hiddenInput, clamped);
+        }
+
         visibleInput.value = formatIdrDigits(hiddenInput.value);
     });
 

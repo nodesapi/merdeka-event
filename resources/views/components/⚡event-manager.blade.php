@@ -14,6 +14,7 @@ new class extends Component
     public $maps_url = '';
     public $start_date = '';
     public $end_date = '';
+    public $registration_closes_at = '';
     public $status = 'active';
     public $recommended_contribution_amount = '';
     public $contribution_guidance = '';
@@ -33,6 +34,7 @@ new class extends Component
             $this->maps_url = $event->maps_url;
             $this->start_date = $event->start_date?->format('Y-m-d\TH:i');
             $this->end_date = $event->end_date?->format('Y-m-d\TH:i');
+            $this->registration_closes_at = $event->registration_closes_at?->format('Y-m-d\TH:i');
             $this->status = $event->status;
             $this->recommended_contribution_amount = $event->recommended_contribution_amount ? (string) (float) $event->recommended_contribution_amount : '';
             $this->contribution_guidance = $event->contribution_guidance;
@@ -61,6 +63,7 @@ new class extends Component
             'maps_url' => 'nullable|url|max:500',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
+            'registration_closes_at' => 'nullable|date',
             'status' => 'required|in:draft,active,completed,cancelled',
             'recommended_contribution_amount' => 'nullable|numeric|min:0',
             'contribution_guidance' => 'nullable|string',
@@ -221,6 +224,13 @@ new class extends Component
                                             <input type="hidden" wire:model.live="end_date" value="{{ $end_date }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal selesai">
                                             @error('end_date') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                         </div>
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Batas Pendaftaran &amp; Pengumpulan Dana</label>
+                                        <input type="hidden" wire:model.live="registration_closes_at" value="{{ $registration_closes_at }}" data-custom-datetime data-custom-datetime-placeholder="Pilih batas waktu (opsional)">
+                                        <p class="mt-1.5 text-xs text-slate-500">Ditampilkan sebagai hitung mundur di halaman utama warga. Kosongkan jika tidak ingin menampilkan batas waktu.</p>
+                                        @error('registration_closes_at') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                     </div>
 
                                     <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">

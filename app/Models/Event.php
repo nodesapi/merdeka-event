@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
     'maps_url',
     'start_date',
     'end_date',
+    'registration_closes_at',
     'status',
     'recommended_contribution_amount',
     'contribution_guidance',
@@ -64,6 +65,7 @@ class Event extends Model
         return [
             'start_date' => 'datetime',
             'end_date' => 'datetime',
+            'registration_closes_at' => 'datetime',
             'recommended_contribution_amount' => 'decimal:2',
         ];
     }

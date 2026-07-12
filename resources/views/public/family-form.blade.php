@@ -210,7 +210,7 @@
                 </div>
 
                 <div class="mt-5 rounded-2xl border border-stone-200 bg-gradient-to-br from-white to-stone-50 p-4 shadow-sm">
-                    <div data-rupiah-input>
+                    <div data-rupiah-input data-rupiah-min="{{ (int) $event->recommended_contribution_amount }}">
                         <label class="block text-xs font-bold uppercase tracking-wide text-stone-500">Nominal Iuran</label>
                         <div class="relative mt-2">
                             <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-bold text-stone-500">Rp</span>
@@ -218,6 +218,9 @@
                             <input type="hidden" name="contribution_iuran_amount" value="{{ $iuranAmount }}" data-rupiah-hidden>
                         </div>
                     </div>
+                    @if ($event->recommended_contribution_amount)
+                        <p class="mt-2 text-xs text-stone-500">Minimal Rp{{ number_format($event->recommended_contribution_amount, 0, ',', '.') }} sesuai ketentuan panitia. Boleh diisi lebih besar.</p>
+                    @endif
                     <input type="text" name="contribution_iuran_note" value="{{ old('contribution_iuran_note') }}" class="mt-3 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500" placeholder="Contoh: Iuran acara 17-an a/n Budi Santoso">
                 </div>
 
