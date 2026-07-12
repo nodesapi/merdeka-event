@@ -215,20 +215,26 @@ new class extends Component
                                     <div class="grid gap-4 md:grid-cols-2">
                                         <div>
                                             <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Mulai</label>
-                                            <input type="hidden" wire:model.live="start_date" value="{{ $start_date }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal mulai">
+                                            <div wire:ignore>
+                                                <input type="hidden" wire:model.live="start_date" value="{{ $start_date }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal mulai">
+                                            </div>
                                             @error('start_date') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                         </div>
 
                                         <div>
                                             <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Selesai</label>
-                                            <input type="hidden" wire:model.live="end_date" value="{{ $end_date }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal selesai">
+                                            <div wire:ignore>
+                                                <input type="hidden" wire:model.live="end_date" value="{{ $end_date }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal selesai">
+                                            </div>
                                             @error('end_date') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                         </div>
                                     </div>
 
                                     <div>
                                         <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Batas Pendaftaran &amp; Pengumpulan Dana</label>
-                                        <input type="hidden" wire:model.live="registration_closes_at" value="{{ $registration_closes_at }}" data-custom-datetime data-custom-datetime-placeholder="Pilih batas waktu (opsional)">
+                                        <div wire:ignore>
+                                            <input type="hidden" wire:model.live="registration_closes_at" value="{{ $registration_closes_at }}" data-custom-datetime data-custom-datetime-placeholder="Pilih batas waktu (opsional)">
+                                        </div>
                                         <p class="mt-1.5 text-xs text-slate-500">Ditampilkan sebagai hitung mundur di halaman utama warga. Kosongkan jika tidak ingin menampilkan batas waktu.</p>
                                         @error('registration_closes_at') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                     </div>
