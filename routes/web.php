@@ -24,6 +24,8 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/form-warga/{submission:reference_code}/qris', 'qrisPayment')->name('public.qris-payment');
     Route::get('/form-warga/{submission:reference_code}/status', 'qrisStatus')->name('public.qris-status');
     Route::get('/form-warga/{submission:reference_code}/bukti', 'registrationReceipt')->name('public.registration-receipt');
+    Route::get('/form-bazaar', 'bazaarForm')->name('public.bazaar-form');
+    Route::post('/form-bazaar', 'storeBazaarForm')->name('public.bazaar-form.store');
     Route::get('/daftar-lomba', 'lombaForm')->name('public.lomba-register');
     Route::get('/daftar-lomba/cari', 'lombaLookup')->name('public.lomba-register.lookup');
     Route::post('/daftar-lomba', 'storeLombaForm')->name('public.lomba-register.store');
@@ -81,6 +83,8 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::get('/warga/export', [ReportController::class, 'residents'])->name('residents.export');
         Route::view('/pendaftaran-warga', 'admin.family-submissions')->name('family-submissions');
         Route::get('/pendaftaran-warga/export', [ReportController::class, 'familySubmissions'])->name('family-submissions.export');
+        Route::view('/form-bazaar', 'admin.bazaar')->name('bazaar-submissions');
+        Route::get('/form-bazaar/export', [ReportController::class, 'bazaar'])->name('bazaar-submissions.export');
         Route::view('/transaksi', 'admin.transactions')->name('transactions');
         Route::get('/transaksi/export', [ReportController::class, 'transactions'])->name('transactions.export');
         Route::view('/pengaturan', 'admin.settings')->name('settings');

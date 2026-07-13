@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BazaarSubmission;
 use App\Models\Competition;
 use App\Models\CompetitionParticipant;
 use App\Models\Event;
@@ -264,6 +265,43 @@ class ReportController extends Controller
         return $this->streamCsv(
             'susunan-acara-' . now()->format('Ymd-Hi') . '.csv',
             ['ID', 'Tanggal', 'Jam', 'Waktu', 'Nama Kegiatan', 'Urutan Tampil'],
+            $rows,
+        );
+    }
+
+    /**
+     * Export daftar pendaftar Form Bazaar sebagai CSV (Excel) atau PDF cetak (dengan logo).
+     */
+    public function bazaar(Request $request)
+    {
+        $event = $this->activeEvent();
+
+        $submissions = $event
+            ? $event->bazaarSubmissions()->with('familySubmission')->latest()->get()
+            : collect();
+
+        if ($request->query('format') === 'pdf') {
+            return view('admin.exports.bazaar', [
+                'event' => $event,
+                'submissions' => $submissions,
+                'site' => \App\Models\SiteSetting::current(),
+                'generatedAt' => now(),
+            ]);
+        }
+
+        $rows = $submissions->map(fn (BazaarSubmission $s) => [
+            $s->reference_code,
+            $s->name,
+            $s->resident_block,
+            $s->phone_number,
+            $s->jenis_jualan,
+            $s->familySubmission?->head_of_family_name,
+            $s->created_at?->format('d/m/Y H:i'),
+        ]);
+
+        return $this->streamCsv(
+            'form-bazaar-' . now()->format('Ymd-Hi') . '.csv',
+            ['Kode', 'Nama', 'Blok', 'No HP', 'Jenis Jualan', 'Kepala Keluarga', 'Tanggal Daftar'],
             $rows,
         );
     }

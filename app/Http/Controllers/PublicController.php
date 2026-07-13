@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BazaarSubmission;
 use App\Models\ContributionItem;
 use App\Models\CommitteeMember;
 use App\Models\Competition;
@@ -179,6 +180,71 @@ class PublicController extends Controller
         return view('public.family-form', [
             'event' => $event,
         ]);
+    }
+
+    public function bazaarForm(): View
+    {
+        return view('public.bazaar-form', [
+            'event' => $this->activeEvent(),
+        ]);
+    }
+
+    public function storeBazaarForm(Request $request): RedirectResponse
+    {
+        $event = $this->activeEvent();
+
+        if (! $event) {
+            return back()->withErrors([
+                'name' => 'Belum ada acara aktif yang menerima pendaftaran bazaar.',
+            ])->withInput();
+        }
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'resident_block' => ['required', 'string', 'max:100'],
+            'phone_number' => ['required', 'string', 'max:50'],
+            'jenis_jualan' => ['required', 'string', 'max:255'],
+        ]);
+
+        $family = BazaarSubmission::resolveEligibleFamily($event, $validated['phone_number']);
+
+        if (! $family) {
+            return back()->withErrors([
+                'phone_number' => 'Nomor HP ini belum terdaftar di Data Warga. Silakan isi Form Warga terlebih dahulu sebelum daftar bazaar.',
+            ])->withInput();
+        }
+
+        $existing = BazaarSubmission::where('family_submission_id', $family->id)->first();
+
+        if ($existing) {
+            return back()->withErrors([
+                'phone_number' => 'Keluarga ini sudah terdaftar bazaar dengan jenis jualan "' . $existing->jenis_jualan . '". Satu keluarga hanya boleh 1 lapak.',
+            ])->withInput();
+        }
+
+        $jenisJualan = trim(preg_replace('/\s+/', ' ', $validated['jenis_jualan']));
+
+        if (BazaarSubmission::jenisJualanTaken($event, $jenisJualan)) {
+            return back()->withErrors([
+                'jenis_jualan' => 'Jenis jualan "' . $jenisJualan . '" sudah didaftarkan warga lain. Silakan pilih jenis jualan lain.',
+            ])->withInput();
+        }
+
+        $referenceCode = 'BZR-' . now()->format('Ymd') . '-' . Str::upper(Str::random(4));
+
+        BazaarSubmission::create([
+            'event_id' => $event->id,
+            'family_submission_id' => $family->id,
+            'reference_code' => $referenceCode,
+            'name' => $validated['name'],
+            'resident_block' => $validated['resident_block'],
+            'phone_number' => $validated['phone_number'],
+            'jenis_jualan' => $jenisJualan,
+        ]);
+
+        return redirect()->route('public.bazaar-form')
+            ->with('success_message', 'Pendaftaran bazaar berhasil dan langsung dikonfirmasi, tidak perlu menunggu verifikasi panitia!')
+            ->with('reference_code', $referenceCode);
     }
 
     public function terms(): View

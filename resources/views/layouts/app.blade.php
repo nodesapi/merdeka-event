@@ -29,6 +29,7 @@
             ]],
             ['heading' => 'Warga', 'items' => [
                 ['route' => 'admin.family-submissions', 'label' => 'Pendaftaran Warga', 'match' => 'admin.family-submissions'],
+                ['route' => 'admin.bazaar-submissions', 'label' => 'Form Bazaar', 'match' => 'admin.bazaar-submissions'],
                 ['route' => 'admin.residents', 'label' => 'Data Warga', 'match' => 'admin.residents'],
             ]],
             ['heading' => 'Keuangan', 'items' => [

@@ -43,6 +43,11 @@ class Event extends Model
         return $this->hasMany(FamilySubmission::class);
     }
 
+    public function bazaarSubmissions(): HasMany
+    {
+        return $this->hasMany(BazaarSubmission::class);
+    }
+
     public function eventSchedules(): HasMany
     {
         return $this->hasMany(EventSchedule::class);
