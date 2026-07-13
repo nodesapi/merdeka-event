@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
     'status',
     'recommended_contribution_amount',
     'contribution_guidance',
+    'bazaar_poster_path',
     'description'
 ])]
 class Event extends Model
@@ -162,5 +163,10 @@ class Event extends Model
     public function getIsMultiDayAttribute(): bool
     {
         return $this->start_date && $this->end_date && ! $this->start_date->isSameDay($this->end_date);
+    }
+
+    public function getBazaarPosterUrlAttribute(): ?string
+    {
+        return $this->bazaar_poster_path ? '/storage/' . ltrim($this->bazaar_poster_path, '/') : null;
     }
 }

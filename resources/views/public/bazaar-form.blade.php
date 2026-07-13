@@ -17,6 +17,12 @@
             <p class="text-sm font-semibold">Form belum dibuka karena belum ada acara aktif.</p>
         </div>
     @else
+        @if ($event->bazaar_poster_url)
+            <div class="mt-6 overflow-hidden rounded-2xl border border-stone-200 shadow-sm">
+                <img src="{{ $event->bazaar_poster_url }}" alt="Poster Bazaar {{ $event->name }}" class="w-full h-auto">
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('public.bazaar-form.store') }}" class="mt-6 w-full min-w-0 max-w-full space-y-6 overflow-x-clip text-left">
             @csrf
 

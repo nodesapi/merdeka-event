@@ -1,11 +1,15 @@
 <?php
 
 use App\Models\Event;
+use App\Support\ImageConverter;
 use Illuminate\Support\Str;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 new class extends Component
 {
+    use WithFileUploads;
+
     public ?string $eventId = null;
 
     public $name = '';
@@ -18,6 +22,9 @@ new class extends Component
     public $status = 'active';
     public $recommended_contribution_amount = '';
     public $contribution_guidance = '';
+
+    public $bazaar_poster;
+    public ?string $bazaar_poster_path = null;
 
     public $success_message = '';
 
@@ -38,6 +45,7 @@ new class extends Component
             $this->status = $event->status;
             $this->recommended_contribution_amount = $event->recommended_contribution_amount ? (string) (float) $event->recommended_contribution_amount : '';
             $this->contribution_guidance = $event->contribution_guidance;
+            $this->bazaar_poster_path = $event->bazaar_poster_path;
         }
     }
 
@@ -67,9 +75,19 @@ new class extends Component
             'status' => 'required|in:draft,active,completed,cancelled',
             'recommended_contribution_amount' => 'nullable|numeric|min:0',
             'contribution_guidance' => 'nullable|string',
+            'bazaar_poster' => 'nullable|image|max:4096',
         ], [
             'end_date.after_or_equal' => 'Tanggal selesai harus sama atau setelah tanggal mulai.',
         ]);
+
+        unset($data['bazaar_poster']);
+
+        if ($this->bazaar_poster) {
+            if ($this->eventId) {
+                ImageConverter::delete(Event::find($this->eventId)?->bazaar_poster_path);
+            }
+            $data['bazaar_poster_path'] = ImageConverter::storeAsWebp($this->bazaar_poster, 'events', 1920);
+        }
 
         if ($this->eventId) {
             $event = Event::findOrFail($this->eventId);
@@ -80,7 +98,23 @@ new class extends Component
             $this->eventId = $event->id;
         }
 
+        $this->reset('bazaar_poster');
+        $this->bazaar_poster_path = $event->bazaar_poster_path;
+
         $this->success_message = 'Data acara berhasil disimpan.';
+    }
+
+    public function removeBazaarPoster()
+    {
+        if (! $this->eventId) {
+            return;
+        }
+
+        $event = Event::findOrFail($this->eventId);
+        ImageConverter::delete($event->bazaar_poster_path);
+        $event->update(['bazaar_poster_path' => null]);
+        $this->bazaar_poster_path = null;
+        $this->success_message = 'Poster bazaar dihapus.';
     }
 
     public function dismissAlert()
@@ -133,6 +167,7 @@ new class extends Component
             'durationText' => $durationText,
             'statusTone' => $statusTone,
             'statusLabel' => $statusLabel,
+            'bazaarPosterUrl' => $this->bazaar_poster_path ? '/storage/' . ltrim($this->bazaar_poster_path, '/') : null,
         ];
     }
 };
@@ -308,6 +343,31 @@ new class extends Component
                                         @error('contribution_guidance') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                     </div>
                                 </div>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-200 bg-white p-5">
+                                <div class="mb-5 flex items-center gap-2">
+                                    <span class="h-4 w-1.5 rounded-full bg-red-600"></span>
+                                    <h4 class="text-base font-semibold text-slate-900">Promosi Bazaar</h4>
+                                </div>
+
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Poster Bazaar</label>
+                                <div class="mb-2 flex h-40 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">
+                                    @if ($bazaar_poster)
+                                        <img src="{{ $bazaar_poster->temporaryUrl() }}" class="h-full w-full object-contain">
+                                    @elseif ($bazaarPosterUrl)
+                                        <img src="{{ $bazaarPosterUrl }}" class="h-full w-full object-contain">
+                                    @else
+                                        <span class="text-xs text-slate-400">Belum ada poster</span>
+                                    @endif
+                                </div>
+                                <input type="file" wire:model="bazaar_poster" accept="image/*" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-500 shadow-sm outline-none file:mr-2 file:rounded-md file:border-0 file:bg-red-50 file:px-3 file:py-1.5 file:font-medium file:text-red-700">
+                                <div wire:loading wire:target="bazaar_poster" class="mt-1 text-xs text-slate-400">Mengunggah...</div>
+                                @error('bazaar_poster') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                <p class="mt-1.5 text-xs text-slate-500">Ditampilkan di halaman Form Bazaar publik. Ganti kapan saja kalau ada revisi desain.</p>
+                                @if ($bazaarPosterUrl)
+                                    <button type="button" wire:click="removeBazaarPoster" class="mt-2 text-xs text-red-500 hover:underline">Hapus poster</button>
+                                @endif
                             </div>
                         </div>
                     </div>
