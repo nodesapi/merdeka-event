@@ -10,6 +10,7 @@ use App\Models\CompetitionParticipant;
 use App\Models\Event;
 use App\Models\FamilyMember;
 use App\Models\FamilySubmission;
+use App\Models\RabFundingSource;
 use App\Models\RabItem;
 use App\Models\Transaction;
 use App\Support\AgeCategory;
@@ -167,6 +168,7 @@ class PublicController extends Controller
         $rabByCategory = RabItem::orderBy('kategori')->orderBy('nama_item')->get()
             ->groupBy('kategori')
             ->map(fn ($items) => [
+                'items' => $items,
                 'rencana' => (float) $items->sum('jumlah_rencana'),
                 'realisasi' => (float) $items->sum('realisasi'),
                 'selisih' => (float) $items->sum('jumlah_rencana') - (float) $items->sum('realisasi'),
@@ -175,6 +177,21 @@ class PublicController extends Controller
 
         $totalRabRencana = (float) $rabByCategory->sum('rencana');
         $totalRabRealisasi = (float) $rabByCategory->sum('realisasi');
+
+        $fundingByCategory = RabFundingSource::orderBy('kategori')->orderBy('sumber')->get()
+            ->groupBy('kategori')
+            ->map(fn ($items) => [
+                'items' => $items,
+                'target' => (float) $items->sum('target'),
+                'realisasi' => (float) $items->sum('realisasi'),
+            ])
+            ->sortKeys();
+
+        $iuranTarget = (float) ($event?->contribution_target_amount ?? 0);
+        $iuranRealisasi = (float) ($event?->iuran_realisasi ?? 0);
+
+        $totalEstimasiDana = $iuranTarget + (float) $fundingByCategory->sum('target');
+        $totalRealisasiDana = $iuranRealisasi + (float) $fundingByCategory->sum('realisasi');
 
         return view('public.finance', [
             'event' => $event,
@@ -187,6 +204,11 @@ class PublicController extends Controller
             'totalRabRencana' => $totalRabRencana,
             'totalRabRealisasi' => $totalRabRealisasi,
             'totalRabSelisih' => $totalRabRencana - $totalRabRealisasi,
+            'fundingByCategory' => $fundingByCategory,
+            'iuranTarget' => $iuranTarget,
+            'iuranRealisasi' => $iuranRealisasi,
+            'totalEstimasiDana' => $totalEstimasiDana,
+            'totalRealisasiDana' => $totalRealisasiDana,
         ]);
     }
 

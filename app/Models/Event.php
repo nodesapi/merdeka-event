@@ -93,6 +93,22 @@ class Event extends Model
     }
 
     /**
+     * Realisasi dana iuran secara realtime = total transaksi dana masuk yang
+     * berasal dari item kontribusi bertipe "iuran" pada Form Warga yang sudah
+     * diverifikasi panitia (tercatat otomatis lewat FamilySubmission::approveAndRecord()).
+     * Tidak menghitung transaksi manual/tunai yang diinput admin di luar form.
+     */
+    public function getIuranRealisasiAttribute(): float
+    {
+        return (float) Transaction::where('type', 'income')
+            ->whereHas('contributionItem', function ($query) {
+                $query->where('type', 'iuran')
+                    ->whereHas('familySubmission', fn ($q) => $q->where('event_id', $this->id));
+            })
+            ->sum('amount');
+    }
+
+    /**
      * Human-friendly Indonesian date range label that handles single-day and
      * multi-day ranges (e.g. "17 Agustus 2026" or "16 – 17 Agustus 2026").
      */

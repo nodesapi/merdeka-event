@@ -8,6 +8,7 @@ use App\Models\CompetitionParticipant;
 use App\Models\Event;
 use App\Models\Role;
 use App\Models\SiteSetting;
+use App\Models\RabFundingSource;
 use App\Models\RabItem;
 use App\Models\Transaction;
 use App\Models\User;
@@ -47,6 +48,7 @@ class DatabaseSeeder extends Seeder
                 'end_date' => $eventYear . '-08-17 22:00:00',
                 'status' => 'active',
                 'recommended_contribution_amount' => 50000,
+                'contribution_target_households' => 150,
                 'contribution_guidance' => 'Iuran rekomendasi per keluarga Rp50.000. Warga boleh menambahkan kontribusi sukarela, donasi, atau sponsor untuk mendukung hadiah lomba dan kebutuhan acara.',
                 'description' => 'Agenda bersama warga untuk lomba 17-an, malam puncak, dan laporan dana iuran serta sumbangan secara terbuka.',
             ]
@@ -325,6 +327,20 @@ class DatabaseSeeder extends Seeder
         foreach ($rabItems as $item) {
             RabItem::updateOrCreate(
                 ['kategori' => $item['kategori'], 'nama_item' => $item['nama_item']],
+                $item
+            );
+        }
+
+        // Kategori "Iuran" tidak diseed di sini — dihitung otomatis dari
+        // Event::contribution_target_amount dan Event::iuran_realisasi.
+        $fundingSources = [
+            ['kategori' => 'Sponsor', 'sumber' => 'Widari', 'target' => 1000000, 'realisasi' => 1000000, 'catatan' => null],
+            ['kategori' => 'Sponsor', 'sumber' => 'Netciti', 'target' => 1000000, 'realisasi' => 0, 'catatan' => null],
+        ];
+
+        foreach ($fundingSources as $item) {
+            RabFundingSource::updateOrCreate(
+                ['kategori' => $item['kategori'], 'sumber' => $item['sumber']],
                 $item
             );
         }

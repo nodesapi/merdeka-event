@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Event;
+use App\Models\RabFundingSource;
 use App\Models\RabItem;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -231,12 +232,6 @@ new class extends Component
         $this->success_message = '';
     }
 
-    protected function activeEvent(): ?Event
-    {
-        return Event::where('status', 'active')->latest('start_date')->first()
-            ?? Event::latest('start_date')->first();
-    }
-
     public function with(): array
     {
         $query = RabItem::query();
@@ -254,12 +249,16 @@ new class extends Component
             });
         }
 
+        $event = Event::where('status', 'active')->latest('start_date')->first()
+            ?? Event::latest('start_date')->first();
+        $iuranTarget = (float) ($event?->contribution_target_amount ?? 0);
+
         return [
             'items' => $query->orderBy('kategori')->orderBy('nama_item')->get(),
             'existingCategories' => RabItem::query()->distinct()->orderBy('kategori')->pluck('kategori'),
             'totalRencana' => (float) RabItem::sum('jumlah_rencana'),
             'totalRealisasi' => (float) RabItem::sum('realisasi'),
-            'event' => $this->activeEvent(),
+            'totalEstimasiDana' => $iuranTarget + (float) RabFundingSource::sum('target'),
         ];
     }
 };
@@ -277,44 +276,16 @@ new class extends Component
         $totalSelisih = $totalRencana - $totalRealisasi;
     @endphp
 
-    {{-- Target dana iuran vs kebutuhan anggaran --}}
-    <div class="mb-6">
-        <h3 class="mb-3 text-base font-bold text-slate-900">Target Dana Iuran</h3>
-        @if ($event && $event->recommended_contribution_amount && $event->contribution_target_households)
-            @php
-                $targetDana = (float) $event->contribution_target_amount;
-                $selisihTarget = $targetDana - $totalRencana;
-            @endphp
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Iuran per Rumah</p>
-                    <p class="mt-2 text-3xl font-extrabold text-slate-900">Rp{{ number_format($event->recommended_contribution_amount, 0, ',', '.') }}</p>
-                </div>
-                <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Target Rumah</p>
-                    <p class="mt-2 text-3xl font-extrabold text-slate-900">{{ number_format($event->contribution_target_households, 0, ',', '.') }} <span class="text-lg font-semibold text-slate-400">rumah</span></p>
-                </div>
-                <div class="rounded-lg border border-red-200 bg-red-50 p-5 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-red-700">Target Dana Iuran</p>
-                    <p class="mt-2 text-3xl font-extrabold text-red-700">Rp{{ number_format($targetDana, 0, ',', '.') }}</p>
-                </div>
-            </div>
-
-            <div class="mt-4 flex flex-col gap-4 rounded-lg border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between {{ $selisihTarget >= 0 ? 'border-emerald-600 bg-emerald-600' : 'border-red-600 bg-red-600' }} text-white">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">{{ $selisihTarget >= 0 ? 'Surplus — Target Dana Cukup' : 'Defisit — Target Dana Kurang' }}</p>
-                    <p class="mt-1 text-sm text-white/90">Total kebutuhan anggaran (RAB) Rp{{ number_format($totalRencana, 0, ',', '.') }} dibanding target dana iuran Rp{{ number_format($targetDana, 0, ',', '.') }}</p>
-                </div>
-                <p class="text-3xl font-extrabold sm:text-4xl">Rp{{ number_format(abs($selisihTarget), 0, ',', '.') }}</p>
-            </div>
-        @else
-            <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-5">
-                <p class="text-sm text-slate-500">
-                    Nominal iuran dan/atau target jumlah rumah belum diatur.
-                    Atur lewat <a href="{{ route('admin.event') }}" class="font-semibold text-red-700 hover:underline">Acara &amp; Jadwal</a> untuk menampilkan target dana dan perbandingan dengan kebutuhan anggaran RAB di sini.
-                </p>
-            </div>
-        @endif
+    {{-- Estimasi dana (Sumber Dana) vs kebutuhan anggaran (RAB) --}}
+    @php
+        $selisihEstimasi = $totalEstimasiDana - $totalRencana;
+    @endphp
+    <div class="mb-6 flex flex-col gap-4 rounded-lg border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between {{ $selisihEstimasi >= 0 ? 'border-emerald-600 bg-emerald-600' : 'border-red-600 bg-red-600' }} text-white">
+        <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">{{ $selisihEstimasi >= 0 ? 'Surplus — Estimasi Dana Cukup' : 'Defisit — Estimasi Dana Kurang' }}</p>
+            <p class="mt-1 text-sm text-white/90">Total Estimasi Dana (Sumber Dana) Rp{{ number_format($totalEstimasiDana, 0, ',', '.') }} dibanding Total Kebutuhan Anggaran (RAB) Rp{{ number_format($totalRencana, 0, ',', '.') }}</p>
+        </div>
+        <p class="text-3xl font-extrabold sm:text-4xl">Rp{{ number_format(abs($selisihEstimasi), 0, ',', '.') }}</p>
     </div>
 
     {{-- Ringkasan --}}
@@ -514,8 +485,12 @@ new class extends Component
                                                     <p class="font-semibold text-slate-900">{{ $item->nama_item }}</p>
                                                     <p class="text-xs text-slate-400">
                                                         {{ (float) $item->volume }}{{ $item->satuan ? ' ' . $item->satuan : '' }}
+                                                        &middot; Rp{{ number_format($item->harga_satuan, 0, ',', '.') }}/{{ $item->satuan ?: 'unit' }}
                                                         @if ($item->pj) &middot; {{ $item->pj }} @endif
                                                     </p>
+                                                    @if ($item->catatan)
+                                                        <p class="mt-0.5 text-xs italic text-slate-400">{{ $item->catatan }}</p>
+                                                    @endif
                                                 </td>
                                                 <td class="whitespace-nowrap px-3 py-2.5 text-right text-slate-700">Rp{{ number_format($item->jumlah_rencana, 0, ',', '.') }}</td>
                                                 <td class="whitespace-nowrap px-3 py-2.5 text-right text-slate-700">Rp{{ number_format($item->realisasi, 0, ',', '.') }}</td>

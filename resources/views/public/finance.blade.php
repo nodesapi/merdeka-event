@@ -82,78 +82,119 @@
     </section>
 
     <section class="mt-6">
-        <h2 class="text-sm font-bold uppercase tracking-wide text-stone-500">Rencana vs Realisasi Anggaran (RAB)</h2>
-        <p class="mt-1 text-xs text-stone-400">Rincian rencana anggaran biaya per kategori dan realisasi penggunaannya.</p>
+        <h2 class="text-sm font-bold uppercase tracking-wide text-stone-500">Sumber Dana</h2>
+        <p class="mt-1 text-xs text-stone-400">Perkiraan dana yang akan terkumpul, dari iuran, sponsor, donasi, dan sumber lainnya.</p>
 
-        @if ($event && $event->recommended_contribution_amount && $event->contribution_target_households)
-            @php
-                $targetDana = (float) $event->contribution_target_amount;
-                $selisihTarget = $targetDana - $totalRabRencana;
-            @endphp
-            <div class="mt-3 grid gap-4 sm:grid-cols-3">
-                <div class="merdeka-card p-5">
-                    <p class="text-xs font-bold uppercase tracking-wide text-stone-600">Iuran per Rumah</p>
-                    <p class="mt-2 text-3xl font-extrabold text-stone-900">Rp{{ number_format($event->recommended_contribution_amount, 0, ',', '.') }}</p>
-                </div>
-                <div class="merdeka-card p-5">
-                    <p class="text-xs font-bold uppercase tracking-wide text-stone-600">Target Rumah</p>
-                    <p class="mt-2 text-3xl font-extrabold text-stone-900">{{ number_format($event->contribution_target_households, 0, ',', '.') }} <span class="text-lg font-semibold text-stone-400">rumah</span></p>
-                </div>
-                <div class="rounded-xl border border-red-200 bg-red-50 p-5 shadow-sm">
-                    <p class="text-xs font-bold uppercase tracking-wide text-red-700">Target Dana Iuran</p>
-                    <p class="mt-2 text-3xl font-extrabold text-red-700">Rp{{ number_format($targetDana, 0, ',', '.') }}</p>
-                </div>
-            </div>
-
-            <div class="mt-4 flex flex-col gap-4 rounded-xl border p-5 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between {{ $selisihTarget >= 0 ? 'border-emerald-200 bg-emerald-700' : 'border-red-200 bg-red-700' }}">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-wide text-white/80">{{ $selisihTarget >= 0 ? 'Surplus — Target Dana Cukup' : 'Defisit — Target Dana Kurang' }}</p>
-                    <p class="mt-1 text-sm text-white/90">Total kebutuhan anggaran (RAB) Rp{{ number_format($totalRabRencana, 0, ',', '.') }} dibanding target dana iuran Rp{{ number_format($targetDana, 0, ',', '.') }}</p>
-                </div>
-                <p class="text-3xl font-extrabold sm:text-4xl">Rp{{ number_format(abs($selisihTarget), 0, ',', '.') }}</p>
-            </div>
-        @endif
-
-        <div class="mt-3 grid gap-4 sm:grid-cols-3">
-            <div class="merdeka-card p-5">
-                <p class="text-xs font-bold uppercase tracking-wide text-stone-600">Total Rencana</p>
-                <p class="mt-2 text-2xl font-extrabold text-stone-900">Rp{{ number_format($totalRabRencana, 0, ',', '.') }}</p>
-            </div>
-            <div class="merdeka-card p-5">
-                <p class="text-xs font-bold uppercase tracking-wide text-amber-700">Total Realisasi</p>
-                <p class="mt-2 text-2xl font-extrabold text-stone-900">Rp{{ number_format($totalRabRealisasi, 0, ',', '.') }}</p>
-            </div>
-            <div class="rounded-xl border p-5 text-white shadow-sm {{ $totalRabSelisih >= 0 ? 'border-emerald-200 bg-emerald-700' : 'border-red-200 bg-red-700' }}">
-                <p class="text-xs font-bold uppercase tracking-wide text-white/80">Selisih</p>
-                <p class="mt-2 text-2xl font-extrabold">Rp{{ number_format(abs($totalRabSelisih), 0, ',', '.') }}</p>
-            </div>
-        </div>
-
-        <div class="merdeka-card mt-4 overflow-hidden">
+        <div class="merdeka-card mt-3 overflow-hidden">
             <div class="overflow-x-auto px-5 py-2">
                 <table class="min-w-full text-left text-sm">
                     <thead class="text-[11px] font-bold uppercase tracking-wide text-stone-400">
-                        <tr><th class="py-2 pr-4">Kategori</th><th class="py-2 pr-4 text-right">Rencana</th><th class="py-2 pr-4 text-right">Realisasi</th><th class="py-2 text-right">Selisih</th></tr>
+                        <tr>
+                            <th class="py-2 pr-4">Kategori / Sumber</th>
+                            <th class="py-2 pr-4">Keterangan</th>
+                            <th class="py-2 pr-4 text-right">Target</th>
+                            <th class="py-2 text-right">Realisasi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-stone-100 text-stone-600">
+                        @if ($event && $event->recommended_contribution_amount && $event->contribution_target_households)
+                            <tr class="bg-stone-50">
+                                <td colspan="4" class="py-2 pr-4 font-bold text-stone-900">Iuran</td>
+                            </tr>
+                            <tr>
+                                <td class="py-2.5 pr-4 pl-6 align-top">Total Iuran Warga</td>
+                                <td class="py-2.5 pr-4 align-top text-stone-500">Rp{{ number_format($event->recommended_contribution_amount, 0, ',', '.') }}/rumah &times; {{ number_format($event->contribution_target_households, 0, ',', '.') }} rumah</td>
+                                <td class="py-2.5 pr-4 text-right align-top">Rp{{ number_format($iuranTarget, 0, ',', '.') }}</td>
+                                <td class="py-2.5 text-right align-top font-semibold text-emerald-700">Rp{{ number_format($iuranRealisasi, 0, ',', '.') }}</td>
+                            </tr>
+                        @endif
+                        @forelse ($fundingByCategory as $kategori => $group)
+                            <tr class="bg-stone-50">
+                                <td colspan="4" class="py-2 pr-4 font-bold text-stone-900">{{ $kategori }}</td>
+                            </tr>
+                            @foreach ($group['items'] as $item)
+                                <tr>
+                                    <td class="py-2.5 pr-4 pl-6 align-top">{{ $item->sumber }}</td>
+                                    <td class="py-2.5 pr-4 align-top text-stone-500">{{ $item->catatan ?: '-' }}</td>
+                                    <td class="py-2.5 pr-4 text-right align-top">Rp{{ number_format($item->target, 0, ',', '.') }}</td>
+                                    <td class="py-2.5 text-right align-top font-semibold text-emerald-700">Rp{{ number_format($item->realisasi, 0, ',', '.') }}</td>
+                                </tr>
+                            @endforeach
+                        @empty
+                            @if (! ($event && $event->recommended_contribution_amount && $event->contribution_target_households))
+                                <tr><td colspan="4" class="py-4 text-center text-stone-400">Belum ada data sumber dana.</td></tr>
+                            @endif
+                        @endforelse
+                    </tbody>
+                    @if ($fundingByCategory->isNotEmpty() || ($event && $event->recommended_contribution_amount && $event->contribution_target_households))
+                        <tfoot>
+                            <tr class="border-t-2 border-stone-200 font-bold text-stone-900">
+                                <td class="py-2.5 pr-4" colspan="2">Total Estimasi Dana</td>
+                                <td class="py-2.5 pr-4 text-right">Rp{{ number_format($totalEstimasiDana, 0, ',', '.') }}</td>
+                                <td class="py-2.5 text-right">Rp{{ number_format($totalRealisasiDana, 0, ',', '.') }}</td>
+                            </tr>
+                        </tfoot>
+                    @endif
+                </table>
+            </div>
+        </div>
+
+        @php
+            $selisihEstimasi = $totalEstimasiDana - $totalRabRencana;
+        @endphp
+        <div class="mt-4 flex flex-col gap-4 rounded-xl border p-5 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between {{ $selisihEstimasi >= 0 ? 'border-emerald-200 bg-emerald-700' : 'border-red-200 bg-red-700' }}">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-wide text-white/80">{{ $selisihEstimasi >= 0 ? 'Surplus — Estimasi Dana Cukup' : 'Defisit — Estimasi Dana Kurang' }}</p>
+                <p class="mt-1 text-sm text-white/90">Total Estimasi Dana Rp{{ number_format($totalEstimasiDana, 0, ',', '.') }} dibanding Total Kebutuhan Anggaran (RAB) Rp{{ number_format($totalRabRencana, 0, ',', '.') }}</p>
+            </div>
+            <p class="text-3xl font-extrabold sm:text-4xl">Rp{{ number_format(abs($selisihEstimasi), 0, ',', '.') }}</p>
+        </div>
+
+        <h2 class="mt-8 text-sm font-bold uppercase tracking-wide text-stone-500">Rincian Kebutuhan RAB</h2>
+        <p class="mt-1 text-xs text-stone-400">Rincian kategori dan sub-kategori kebutuhan anggaran, rencana vs realisasi penggunaannya.</p>
+
+        <div class="merdeka-card mt-3 overflow-hidden">
+            <div class="overflow-x-auto px-5 py-2">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="text-[11px] font-bold uppercase tracking-wide text-stone-400">
+                        <tr>
+                            <th class="py-2 pr-4">Kategori / Rincian</th>
+                            <th class="py-2 pr-4">Qty</th>
+                            <th class="py-2 pr-4 text-right">Nominal</th>
+                            <th class="py-2 pr-4 text-right">Rencana</th>
+                            <th class="py-2 pr-4 text-right">Realisasi</th>
+                            <th class="py-2 pr-4 text-right">Selisih</th>
+                            <th class="py-2">Keterangan</th>
+                        </tr>
                     </thead>
                     <tbody class="divide-y divide-stone-100 text-stone-600">
                         @forelse ($rabByCategory as $kategori => $group)
-                            <tr>
-                                <td class="py-2.5 pr-4 font-semibold text-stone-900">{{ $kategori }}</td>
-                                <td class="py-2.5 pr-4 text-right">Rp{{ number_format($group['rencana'], 0, ',', '.') }}</td>
-                                <td class="py-2.5 pr-4 text-right">Rp{{ number_format($group['realisasi'], 0, ',', '.') }}</td>
-                                <td class="py-2.5 text-right font-bold {{ $group['selisih'] >= 0 ? 'text-emerald-700' : 'text-red-700' }}">Rp{{ number_format(abs($group['selisih']), 0, ',', '.') }}</td>
+                            <tr class="bg-stone-50">
+                                <td colspan="7" class="py-2 pr-4 font-bold text-stone-900">{{ $kategori }}</td>
                             </tr>
+                            @foreach ($group['items'] as $item)
+                                <tr>
+                                    <td class="py-2.5 pr-4 pl-6 align-top">{{ $item->nama_item }}</td>
+                                    <td class="py-2.5 pr-4 align-top">{{ (float) $item->volume }}{{ $item->satuan ? ' ' . $item->satuan : '' }}</td>
+                                    <td class="py-2.5 pr-4 text-right align-top">Rp{{ number_format($item->harga_satuan, 0, ',', '.') }}</td>
+                                    <td class="py-2.5 pr-4 text-right align-top">Rp{{ number_format($item->jumlah_rencana, 0, ',', '.') }}</td>
+                                    <td class="py-2.5 pr-4 text-right align-top">Rp{{ number_format($item->realisasi, 0, ',', '.') }}</td>
+                                    <td class="py-2.5 pr-4 text-right align-top font-semibold {{ $item->selisih >= 0 ? 'text-emerald-700' : 'text-red-700' }}">Rp{{ number_format(abs($item->selisih), 0, ',', '.') }}</td>
+                                    <td class="py-2.5 align-top text-stone-500">{{ $item->catatan ?: '-' }}</td>
+                                </tr>
+                            @endforeach
                         @empty
-                            <tr><td colspan="4" class="py-4 text-center text-stone-400">Belum ada data RAB.</td></tr>
+                            <tr><td colspan="7" class="py-4 text-center text-stone-400">Belum ada data RAB.</td></tr>
                         @endforelse
                     </tbody>
                     @if ($rabByCategory->isNotEmpty())
                         <tfoot>
                             <tr class="border-t-2 border-stone-200 font-bold text-stone-900">
-                                <td class="py-2.5 pr-4">Total</td>
+                                <td class="py-2.5 pr-4" colspan="3">Total Estimasi Anggaran</td>
                                 <td class="py-2.5 pr-4 text-right">Rp{{ number_format($totalRabRencana, 0, ',', '.') }}</td>
                                 <td class="py-2.5 pr-4 text-right">Rp{{ number_format($totalRabRealisasi, 0, ',', '.') }}</td>
-                                <td class="py-2.5 text-right">Rp{{ number_format(abs($totalRabSelisih), 0, ',', '.') }}</td>
+                                <td class="py-2.5 pr-4 text-right">Rp{{ number_format(abs($totalRabSelisih), 0, ',', '.') }}</td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     @endif
