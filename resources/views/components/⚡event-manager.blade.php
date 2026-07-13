@@ -22,6 +22,7 @@ new class extends Component
     public $status = 'active';
     public $recommended_contribution_amount = '';
     public $contribution_guidance = '';
+    public $contribution_target_households = '';
 
     public $bazaar_poster;
     public ?string $bazaar_poster_path = null;
@@ -45,6 +46,7 @@ new class extends Component
             $this->status = $event->status;
             $this->recommended_contribution_amount = $event->recommended_contribution_amount ? (string) (float) $event->recommended_contribution_amount : '';
             $this->contribution_guidance = $event->contribution_guidance;
+            $this->contribution_target_households = $event->contribution_target_households ? (string) $event->contribution_target_households : '';
             $this->bazaar_poster_path = $event->bazaar_poster_path;
         }
     }
@@ -75,12 +77,14 @@ new class extends Component
             'status' => 'required|in:draft,active,completed,cancelled',
             'recommended_contribution_amount' => 'nullable|numeric|min:0',
             'contribution_guidance' => 'nullable|string',
+            'contribution_target_households' => 'nullable|integer|min:0',
             'bazaar_poster' => 'nullable|image|max:4096',
         ], [
             'end_date.after_or_equal' => 'Tanggal selesai harus sama atau setelah tanggal mulai.',
         ]);
 
         unset($data['bazaar_poster']);
+        $data['contribution_target_households'] = $data['contribution_target_households'] !== '' ? $data['contribution_target_households'] : null;
 
         if ($this->bazaar_poster) {
             if ($this->eventId) {
@@ -335,6 +339,13 @@ new class extends Component
                                         </div>
                                         <p class="mt-1.5 text-xs text-slate-500">Nilai ini tampil sebagai acuan di form warga, tetapi warga tetap bisa memberi tambahan sukarela, donasi, atau sponsor.</p>
                                         @error('recommended_contribution_amount') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Target Jumlah Rumah/KK <span class="font-normal normal-case text-slate-400">(opsional)</span></label>
+                                        <input type="number" min="0" wire:model="contribution_target_households" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="Contoh: 200">
+                                        <p class="mt-1.5 text-xs text-slate-500">Dipakai untuk menghitung target total dana iuran (Nominal Iuran &times; Target Rumah), ditampilkan di halaman RAB dan transparansi dana.</p>
+                                        @error('contribution_target_households') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                     </div>
 
                                     <div>

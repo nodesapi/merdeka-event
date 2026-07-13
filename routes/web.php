@@ -87,6 +87,8 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::get('/form-bazaar/export', [ReportController::class, 'bazaar'])->name('bazaar-submissions.export');
         Route::view('/transaksi', 'admin.transactions')->name('transactions');
         Route::get('/transaksi/export', [ReportController::class, 'transactions'])->name('transactions.export');
+        Route::view('/rab', 'admin.rab')->name('rab');
+        Route::get('/rab/export', [ReportController::class, 'rab'])->name('rab.export');
         Route::view('/pengaturan', 'admin.settings')->name('settings');
         Route::view('/users', 'admin.users')->middleware('role:admin')->name('users');
         Route::get('/lomba/{competition:slug}/peserta', function (Competition $competition) {

@@ -9,6 +9,7 @@ use App\Models\CompetitionParticipant;
 use App\Models\Event;
 use App\Models\EventSchedule;
 use App\Models\FamilySubmission;
+use App\Models\RabItem;
 use App\Models\Transaction;
 use App\Support\AgeCategory;
 use Illuminate\Http\Request;
@@ -302,6 +303,49 @@ class ReportController extends Controller
         return $this->streamCsv(
             'form-bazaar-' . now()->format('Ymd-Hi') . '.csv',
             ['Kode', 'Nama', 'Blok', 'No HP', 'Jenis Jualan', 'Kepala Keluarga', 'Tanggal Daftar'],
+            $rows,
+        );
+    }
+
+    /**
+     * Export RAB (Rencana Anggaran Biaya) sebagai CSV (Excel, bisa diedit & diupload ulang) atau PDF cetak.
+     */
+    public function rab(Request $request)
+    {
+        $items = RabItem::orderBy('kategori')->orderBy('nama_item')->get();
+
+        $totalRencana = (float) $items->sum('jumlah_rencana');
+        $totalRealisasi = (float) $items->sum('realisasi');
+
+        if ($request->query('format') === 'pdf') {
+            return view('admin.exports.rab', [
+                'items' => $items,
+                'totalRencana' => $totalRencana,
+                'totalRealisasi' => $totalRealisasi,
+                'totalSelisih' => $totalRencana - $totalRealisasi,
+                'site' => \App\Models\SiteSetting::current(),
+                'generatedAt' => now(),
+            ]);
+        }
+
+        $rows = $items->map(fn (RabItem $item) => [
+            $item->id,
+            $item->kategori,
+            $item->nama_item,
+            (float) $item->volume,
+            $item->satuan,
+            (float) $item->harga_satuan,
+            (float) $item->jumlah_rencana,
+            (float) $item->realisasi,
+            $item->selisih,
+            $item->pj,
+            $item->status,
+            $item->catatan,
+        ]);
+
+        return $this->streamCsv(
+            'rab-' . now()->format('Ymd-Hi') . '.csv',
+            ['ID', 'Kategori', 'Nama Item', 'Volume', 'Satuan', 'Harga Satuan', 'Jumlah Rencana', 'Realisasi', 'Selisih', 'PJ', 'Status', 'Catatan'],
             $rows,
         );
     }

@@ -22,6 +22,7 @@ use Illuminate\Support\Carbon;
     'status',
     'recommended_contribution_amount',
     'contribution_guidance',
+    'contribution_target_households',
     'bazaar_poster_path',
     'description'
 ])]
@@ -74,7 +75,21 @@ class Event extends Model
             'end_date' => 'datetime',
             'registration_closes_at' => 'datetime',
             'recommended_contribution_amount' => 'decimal:2',
+            'contribution_target_households' => 'integer',
         ];
+    }
+
+    /**
+     * Target total dana iuran = nominal rekomendasi iuran x target jumlah rumah/KK.
+     * Null kalau salah satu belum diisi panitia.
+     */
+    public function getContributionTargetAmountAttribute(): ?float
+    {
+        if (! $this->recommended_contribution_amount || ! $this->contribution_target_households) {
+            return null;
+        }
+
+        return (float) $this->recommended_contribution_amount * $this->contribution_target_households;
     }
 
     /**

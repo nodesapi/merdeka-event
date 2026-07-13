@@ -10,6 +10,7 @@ use App\Models\CompetitionParticipant;
 use App\Models\Event;
 use App\Models\FamilyMember;
 use App\Models\FamilySubmission;
+use App\Models\RabItem;
 use App\Models\Transaction;
 use App\Support\AgeCategory;
 use App\Support\PayHook;
@@ -163,6 +164,18 @@ class PublicController extends Controller
         $totalIncome = (float) $incomeTransactions->sum('amount');
         $totalExpense = (float) $expenseTransactions->sum('amount');
 
+        $rabByCategory = RabItem::orderBy('kategori')->orderBy('nama_item')->get()
+            ->groupBy('kategori')
+            ->map(fn ($items) => [
+                'rencana' => (float) $items->sum('jumlah_rencana'),
+                'realisasi' => (float) $items->sum('realisasi'),
+                'selisih' => (float) $items->sum('jumlah_rencana') - (float) $items->sum('realisasi'),
+            ])
+            ->sortKeys();
+
+        $totalRabRencana = (float) $rabByCategory->sum('rencana');
+        $totalRabRealisasi = (float) $rabByCategory->sum('realisasi');
+
         return view('public.finance', [
             'event' => $event,
             'incomeTransactions' => $incomeTransactions,
@@ -170,6 +183,10 @@ class PublicController extends Controller
             'totalIncome' => $totalIncome,
             'totalExpense' => $totalExpense,
             'balance' => $totalIncome - $totalExpense,
+            'rabByCategory' => $rabByCategory,
+            'totalRabRencana' => $totalRabRencana,
+            'totalRabRealisasi' => $totalRabRealisasi,
+            'totalRabSelisih' => $totalRabRencana - $totalRabRealisasi,
         ]);
     }
 

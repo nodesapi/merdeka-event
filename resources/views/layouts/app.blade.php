@@ -34,6 +34,7 @@
             ]],
             ['heading' => 'Keuangan', 'items' => [
                 ['route' => 'admin.transactions', 'label' => 'Transaksi Dana', 'match' => 'admin.transactions'],
+                ['route' => 'admin.rab', 'label' => 'RAB (Anggaran)', 'match' => 'admin.rab'],
             ]],
             ['heading' => 'Kepanitiaan & Sistem', 'items' => [
                 ['route' => 'admin.committee', 'label' => 'Susunan Panitia', 'match' => 'admin.committee'],

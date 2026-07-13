@@ -8,6 +8,7 @@ use App\Models\CompetitionParticipant;
 use App\Models\Event;
 use App\Models\Role;
 use App\Models\SiteSetting;
+use App\Models\RabItem;
 use App\Models\Transaction;
 use App\Models\User;
 use Illuminate\Support\Str;
@@ -310,6 +311,21 @@ class DatabaseSeeder extends Seeder
                     'resident_block' => $transaction['resident_block'],
                     'status' => $transaction['status'],
                 ]
+            );
+        }
+
+        $rabItems = [
+            ['kategori' => 'Konsumsi', 'nama_item' => 'Nasi kotak panitia & tamu', 'volume' => 150, 'satuan' => 'kotak', 'harga_satuan' => 20000, 'jumlah_rencana' => 3000000, 'realisasi' => 2850000, 'pj' => 'Maya Anggraini', 'status' => 'selesai', 'catatan' => null],
+            ['kategori' => 'Sound System & Hiburan', 'nama_item' => 'Sewa sound system + organ tunggal', 'volume' => 1, 'satuan' => 'paket', 'harga_satuan' => 3500000, 'jumlah_rencana' => 3500000, 'realisasi' => 3500000, 'pj' => 'Rina Wulandari', 'status' => 'selesai', 'catatan' => null],
+            ['kategori' => 'Lomba & Hadiah', 'nama_item' => 'Hadiah & doorprize lomba anak', 'volume' => 1, 'satuan' => 'paket', 'harga_satuan' => 1500000, 'jumlah_rencana' => 1500000, 'realisasi' => 1200000, 'pj' => 'Rina Wulandari', 'status' => 'proses', 'catatan' => null],
+            ['kategori' => 'Perlengkapan & Dekorasi', 'nama_item' => 'Umbul-umbul & bendera merah putih', 'volume' => 50, 'satuan' => 'pcs', 'harga_satuan' => 15000, 'jumlah_rencana' => 750000, 'realisasi' => 0, 'pj' => 'Joko Prasetyo', 'status' => 'belum', 'catatan' => null],
+            ['kategori' => 'Dana Cadangan/Tak Terduga', 'nama_item' => 'Cadangan dana tak terduga', 'volume' => 1, 'satuan' => 'paket', 'harga_satuan' => 500000, 'jumlah_rencana' => 500000, 'realisasi' => 0, 'pj' => 'Andi Saputra', 'status' => 'belum', 'catatan' => null],
+        ];
+
+        foreach ($rabItems as $item) {
+            RabItem::updateOrCreate(
+                ['kategori' => $item['kategori'], 'nama_item' => $item['nama_item']],
+                $item
             );
         }
     }
