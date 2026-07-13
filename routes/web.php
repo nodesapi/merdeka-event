@@ -60,6 +60,7 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::view('/', 'dashboard')->name('dashboard');
         Route::view('/acara', 'admin.event')->name('event');
         Route::view('/susunan-acara', 'admin.schedule')->name('schedule');
+        Route::get('/susunan-acara/export', [ReportController::class, 'schedule'])->name('schedule.export');
         Route::view('/goody-bag', 'admin.goody-bag')->name('goody-bag');
         Route::view('/panitia', 'admin.committee')->name('committee');
         Route::view('/lomba', 'admin.competitions')->name('competitions');

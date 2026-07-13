@@ -1,11 +1,15 @@
 <?php
 
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use App\Models\EventSchedule;
 use App\Models\Event;
+use Illuminate\Support\Facades\DB;
 
 new class extends Component
 {
+    use WithFileUploads;
+
     public ?string $editingId = null;
 
     public $time_label = '';
@@ -14,6 +18,9 @@ new class extends Component
     public $sort_order = 0;
 
     public $success_message = '';
+
+    public $scheduleImportFile = null;
+    public array $importErrors = [];
 
     protected function rules(): array
     {
@@ -74,6 +81,99 @@ new class extends Component
             $this->resetForm();
         }
         $this->success_message = 'Jadwal berhasil dihapus.';
+    }
+
+    /**
+     * Upload CSV hasil export (kolom: ID, Tanggal, Jam, Waktu, Nama Kegiatan, Urutan Tampil).
+     * Baris dengan ID yang cocok akan diperbarui, baris tanpa ID/tidak cocok akan ditambahkan baru.
+     * Bersifat upsert-only — tidak pernah menghapus baris yang hilang dari file.
+     */
+    public function importSchedule()
+    {
+        $this->importErrors = [];
+
+        $this->validate([
+            'scheduleImportFile' => 'required|file|mimes:csv,txt|max:2048',
+        ]);
+
+        $event = $this->activeEvent();
+        if (! $event) {
+            $this->addError('scheduleImportFile', 'Belum ada event aktif. Buat event terlebih dahulu.');
+            return;
+        }
+
+        $handle = fopen($this->scheduleImportFile->getRealPath(), 'r');
+        if (! $handle) {
+            $this->addError('scheduleImportFile', 'File tidak bisa dibaca.');
+            return;
+        }
+
+        // Lewati UTF-8 BOM kalau ada (file hasil export pakai BOM).
+        $bom = fread($handle, 3);
+        if ($bom !== "\xEF\xBB\xBF") {
+            rewind($handle);
+        }
+
+        fgetcsv($handle); // lewati baris header
+
+        $created = 0;
+        $updated = 0;
+        $errors = [];
+        $rowNumber = 1;
+
+        DB::transaction(function () use ($handle, $event, &$created, &$updated, &$errors, &$rowNumber) {
+            while (($row = fgetcsv($handle)) !== false) {
+                $rowNumber++;
+
+                [$id, $tanggal, $jam, $timeLabel, $activity, $sortOrder] = array_pad($row, 6, null);
+
+                $timeLabel = trim((string) $timeLabel);
+                $activity = trim((string) $activity);
+
+                if ($timeLabel === '' || $activity === '') {
+                    $errors[] = "Baris {$rowNumber}: Waktu/Nama Kegiatan kosong, dilewati.";
+                    continue;
+                }
+
+                $scheduledAt = null;
+                $tanggal = trim((string) $tanggal);
+                $jam = trim((string) $jam);
+
+                if ($tanggal !== '') {
+                    try {
+                        $scheduledAt = \Illuminate\Support\Carbon::parse($tanggal . ' ' . ($jam !== '' ? $jam : '00:00'));
+                    } catch (\Throwable $e) {
+                        $errors[] = "Baris {$rowNumber}: format tanggal/jam tidak valid, tanggal dikosongkan.";
+                    }
+                }
+
+                $data = [
+                    'time_label' => $timeLabel,
+                    'scheduled_at' => $scheduledAt,
+                    'activity' => $activity,
+                    'sort_order' => is_numeric($sortOrder) ? (int) $sortOrder : 0,
+                ];
+
+                $id = trim((string) $id);
+                $existing = $id !== '' ? EventSchedule::where('id', $id)->where('event_id', $event->id)->first() : null;
+
+                if ($existing) {
+                    $existing->update($data);
+                    $updated++;
+                } else {
+                    EventSchedule::create(array_merge($data, ['event_id' => $event->id]));
+                    $created++;
+                }
+            }
+        });
+
+        fclose($handle);
+
+        $this->importErrors = $errors;
+        $this->success_message = "Import selesai: {$created} kegiatan ditambahkan, {$updated} diperbarui."
+            . (count($errors) ? ' ' . count($errors) . ' baris dilewati, lihat detail di bawah.' : '');
+
+        $this->reset(['scheduleImportFile']);
     }
 
     public function resetForm()
@@ -153,10 +253,44 @@ new class extends Component
 
         <!-- List -->
         <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h3 class="font-semibold text-base text-slate-900 mb-4 flex items-center justify-between">
-                <span>Susunan Acara</span>
-                <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{{ $schedules->count() }} kegiatan</span>
-            </h3>
+            <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 class="font-semibold text-base text-slate-900 flex items-center gap-2">
+                    <span>Susunan Acara</span>
+                    <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{{ $schedules->count() }} kegiatan</span>
+                </h3>
+                <div class="flex gap-2">
+                    <a href="{{ route('admin.schedule.export', ['format' => 'csv']) }}" class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100">
+                        <x-icon name="wallet" class="h-4 w-4" /> Excel
+                    </a>
+                    <a href="{{ route('admin.schedule.export', ['format' => 'pdf']) }}" target="_blank" class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-100">
+                        <x-icon name="calendar" class="h-4 w-4" /> PDF
+                    </a>
+                </div>
+            </div>
+
+            <div class="mb-5 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+                <p class="text-xs font-semibold text-slate-600">Import dari Excel</p>
+                <p class="mt-1 text-xs text-slate-400">Upload file CSV hasil edit (kolom ID jangan diubah/dihapus). Baris yang diedit/kolom ID cocok akan diperbarui, baris baru tanpa ID akan ditambahkan. Baris yang dihapus di Excel <span class="font-semibold">tidak ikut terhapus</span> di sistem — hapus manual lewat tombol Hapus.</p>
+                <div class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <input type="file" wire:model="scheduleImportFile" accept=".csv,text/csv" class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-200 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-300">
+                    <button type="button" wire:click="importSchedule" wire:loading.attr="disabled" wire:target="scheduleImportFile,importSchedule" class="shrink-0 rounded-md bg-slate-700 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50">
+                        <span wire:loading.remove wire:target="importSchedule">Import</span>
+                        <span wire:loading wire:target="scheduleImportFile,importSchedule">Memproses...</span>
+                    </button>
+                </div>
+                @error('scheduleImportFile') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                @if (!empty($importErrors))
+                    <div class="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                        <p class="font-semibold">Baris dilewati:</p>
+                        <ul class="mt-1 list-disc pl-4">
+                            @foreach ($importErrors as $err)
+                                <li>{{ $err }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+            </div>
+
             @if ($schedules->isEmpty())
                 <p class="py-4 text-center text-slate-400 text-sm">Belum ada susunan acara. Tambahkan lewat form di samping.</p>
             @else

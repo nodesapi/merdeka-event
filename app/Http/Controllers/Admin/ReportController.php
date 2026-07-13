@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Competition;
 use App\Models\CompetitionParticipant;
 use App\Models\Event;
+use App\Models\EventSchedule;
 use App\Models\FamilySubmission;
 use App\Models\Transaction;
 use App\Support\AgeCategory;
@@ -227,6 +228,42 @@ class ReportController extends Controller
         return $this->streamCsv(
             'peserta-' . $competition->slug . '-' . now()->format('Ymd-Hi') . '.csv',
             ['No Daftar', 'Nama / Regu', 'Kategori Umur', 'Umur', 'Babak', 'Status', 'Blok', 'No HP'],
+            $rows,
+        );
+    }
+
+    /**
+     * Export susunan acara sebagai CSV (Excel, bisa diedit & diupload ulang) atau PDF cetak (dengan logo).
+     */
+    public function schedule(Request $request)
+    {
+        $event = $this->activeEvent();
+
+        $schedules = $event
+            ? $event->eventSchedules()->orderBy('scheduled_at')->orderBy('sort_order')->orderBy('time_label')->get()
+            : collect();
+
+        if ($request->query('format') === 'pdf') {
+            return view('admin.exports.schedule', [
+                'event' => $event,
+                'schedules' => $schedules,
+                'site' => \App\Models\SiteSetting::current(),
+                'generatedAt' => now(),
+            ]);
+        }
+
+        $rows = $schedules->map(fn (EventSchedule $item) => [
+            $item->id,
+            $item->scheduled_at?->format('Y-m-d'),
+            $item->scheduled_at?->format('H:i'),
+            $item->time_label,
+            $item->activity,
+            $item->sort_order,
+        ]);
+
+        return $this->streamCsv(
+            'susunan-acara-' . now()->format('Ymd-Hi') . '.csv',
+            ['ID', 'Tanggal', 'Jam', 'Waktu', 'Nama Kegiatan', 'Urutan Tampil'],
             $rows,
         );
     }
