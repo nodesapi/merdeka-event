@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'event_id',
     'time_label',
+    'scheduled_at',
     'activity',
     'sort_order',
 ])]
@@ -21,6 +22,7 @@ class EventSchedule extends Model
     protected function casts(): array
     {
         return [
+            'scheduled_at' => 'datetime',
             'sort_order' => 'integer',
         ];
     }

@@ -205,14 +205,44 @@
                 <a href="{{ route('public.schedule') }}" class="group inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-red-700 hover:underline">Lihat semua <x-icon name="arrow-right" class="h-4 w-4 transition group-hover:translate-x-0.5" /></a>
             </div>
 
-            <div class="merdeka-card mt-5 divide-y divide-stone-100 p-0">
-                @foreach ($schedules as $item)
-                    <div class="flex items-center gap-4 p-4">
-                        <span class="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-black tabular-nums text-red-700">{{ $item->time_label }}</span>
-                        <p class="min-w-0 flex-1 text-left text-sm font-semibold leading-6 text-stone-800">{{ $item->activity }}</p>
-                    </div>
-                @endforeach
-            </div>
+            @php
+                $scheduleGroups = $event?->is_multi_day
+                    ? $schedules->groupBy(fn ($item) => optional($item->scheduled_at)->format('Y-m-d') ?? 'tbd')
+                    : null;
+            @endphp
+
+            @if ($scheduleGroups)
+                <div class="mt-5 space-y-5">
+                    @foreach ($scheduleGroups as $dateKey => $daySchedules)
+                        <div>
+                            <p class="mb-2 text-xs font-bold uppercase tracking-wide text-stone-400">
+                                @if ($dateKey === 'tbd')
+                                    Waktu Belum Ditentukan
+                                @else
+                                    {{ \Illuminate\Support\Carbon::parse($dateKey)->locale('id')->translatedFormat('l, d F Y') }}
+                                @endif
+                            </p>
+                            <div class="merdeka-card divide-y divide-stone-100 p-0">
+                                @foreach ($daySchedules->take(2) as $item)
+                                    <div class="flex items-center gap-4 p-4">
+                                        <span class="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-black tabular-nums text-red-700">{{ $item->time_label }}</span>
+                                        <p class="min-w-0 flex-1 text-left text-sm font-semibold leading-6 text-stone-800">{{ $item->activity }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <div class="merdeka-card mt-5 divide-y divide-stone-100 p-0">
+                    @foreach ($schedules->take(5) as $item)
+                        <div class="flex items-center gap-4 p-4">
+                            <span class="shrink-0 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-black tabular-nums text-red-700">{{ $item->time_label }}</span>
+                            <p class="min-w-0 flex-1 text-left text-sm font-semibold leading-6 text-stone-800">{{ $item->activity }}</p>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         </section>
     @endif
 

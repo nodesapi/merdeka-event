@@ -63,7 +63,7 @@ class PublicController extends Controller
             : collect();
 
         $schedules = $event
-            ? $event->eventSchedules()->orderBy('sort_order')->orderBy('time_label')->take(5)->get()
+            ? $event->eventSchedules()->orderBy('scheduled_at')->orderBy('sort_order')->orderBy('time_label')->get()
             : collect();
 
         $goodyBagItems = $event
@@ -88,7 +88,7 @@ class PublicController extends Controller
         $event = $this->activeEvent();
 
         $schedules = $event
-            ? $event->eventSchedules()->orderBy('sort_order')->orderBy('time_label')->get()
+            ? $event->eventSchedules()->orderBy('scheduled_at')->orderBy('sort_order')->orderBy('time_label')->get()
             : collect();
 
         return view('public.schedule', [

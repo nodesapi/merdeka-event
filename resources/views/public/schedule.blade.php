@@ -19,24 +19,62 @@
                 Belum ada susunan acara yang ditambahkan.
             </div>
         @else
-            <div class="mt-8 space-y-0">
-                @foreach ($schedules as $index => $item)
-                    <div class="relative flex gap-4 pb-8 last:pb-0">
-                        @if (! $loop->last)
-                            <span class="absolute left-[15px] top-8 h-full w-px bg-stone-200"></span>
-                        @endif
-                        <span class="relative z-10 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-700 text-xs font-black text-white shadow-md shadow-red-600/20">
-                            {{ $index + 1 }}
-                        </span>
-                        <div class="min-w-0 flex-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
-                                <x-icon name="clock" class="h-3.5 w-3.5" /> {{ $item->time_label }}
-                            </span>
-                            <p class="mt-2 font-black text-stone-900">{{ $item->activity }}</p>
+            @php
+                $groupedSchedules = $event?->is_multi_day
+                    ? $schedules->groupBy(fn ($item) => optional($item->scheduled_at)->format('Y-m-d') ?? 'tbd')
+                    : null;
+            @endphp
+
+            @if ($groupedSchedules)
+                @foreach ($groupedSchedules as $dateKey => $daySchedules)
+                    <div class="mt-8">
+                        <h2 class="mb-4 text-sm font-black uppercase tracking-wide text-red-600">
+                            @if ($dateKey === 'tbd')
+                                Waktu Belum Ditentukan
+                            @else
+                                {{ \Illuminate\Support\Carbon::parse($dateKey)->locale('id')->translatedFormat('l, d F Y') }}
+                            @endif
+                        </h2>
+                        <div class="space-y-0">
+                            @foreach ($daySchedules->values() as $item)
+                                <div class="relative flex gap-4 pb-8 last:pb-0">
+                                    @if (! $loop->last)
+                                        <span class="absolute left-[15px] top-8 h-full w-px bg-stone-200"></span>
+                                    @endif
+                                    <span class="relative z-10 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-700 text-xs font-black text-white shadow-md shadow-red-600/20">
+                                        {{ $loop->iteration }}
+                                    </span>
+                                    <div class="min-w-0 flex-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                                        <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+                                            <x-icon name="clock" class="h-3.5 w-3.5" /> {{ $item->time_label }}
+                                        </span>
+                                        <p class="mt-2 font-black text-stone-900">{{ $item->activity }}</p>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
                 @endforeach
-            </div>
+            @else
+                <div class="mt-8 space-y-0">
+                    @foreach ($schedules as $item)
+                        <div class="relative flex gap-4 pb-8 last:pb-0">
+                            @if (! $loop->last)
+                                <span class="absolute left-[15px] top-8 h-full w-px bg-stone-200"></span>
+                            @endif
+                            <span class="relative z-10 mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-red-700 text-xs font-black text-white shadow-md shadow-red-600/20">
+                                {{ $loop->iteration }}
+                            </span>
+                            <div class="min-w-0 flex-1 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+                                    <x-icon name="clock" class="h-3.5 w-3.5" /> {{ $item->time_label }}
+                                </span>
+                                <p class="mt-2 font-black text-stone-900">{{ $item->activity }}</p>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
         @endif
     </div>
 </x-layouts.public>

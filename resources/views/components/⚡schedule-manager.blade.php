@@ -9,6 +9,7 @@ new class extends Component
     public ?string $editingId = null;
 
     public $time_label = '';
+    public $scheduled_at = '';
     public $activity = '';
     public $sort_order = 0;
 
@@ -18,6 +19,7 @@ new class extends Component
     {
         return [
             'time_label' => 'required|string|max:100',
+            'scheduled_at' => 'nullable|date',
             'activity' => 'required|string|max:255',
             'sort_order' => 'nullable|integer|min:0|max:999',
         ];
@@ -40,6 +42,7 @@ new class extends Component
         }
 
         $data['sort_order'] = $this->sort_order ?: 0;
+        $data['scheduled_at'] = $this->scheduled_at ?: null;
 
         if ($this->editingId) {
             EventSchedule::where('id', $this->editingId)->update($data);
@@ -59,6 +62,7 @@ new class extends Component
         $item = EventSchedule::findOrFail($id);
         $this->editingId = $item->id;
         $this->time_label = $item->time_label;
+        $this->scheduled_at = $item->scheduled_at?->format('Y-m-d\TH:i');
         $this->activity = $item->activity;
         $this->sort_order = $item->sort_order;
     }
@@ -74,7 +78,7 @@ new class extends Component
 
     public function resetForm()
     {
-        $this->reset(['editingId', 'time_label', 'activity', 'sort_order']);
+        $this->reset(['editingId', 'time_label', 'scheduled_at', 'activity', 'sort_order']);
         $this->sort_order = 0;
     }
 
@@ -89,7 +93,7 @@ new class extends Component
 
         return [
             'schedules' => $event
-                ? $event->eventSchedules()->orderBy('sort_order')->orderBy('time_label')->get()
+                ? $event->eventSchedules()->orderBy('scheduled_at')->orderBy('sort_order')->orderBy('time_label')->get()
                 : collect(),
         ];
     }
@@ -116,6 +120,14 @@ new class extends Component
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Waktu</label>
                     <input type="text" wire:model="time_label" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: 07.00 - 08.00">
                     @error('time_label') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tanggal &amp; Jam</label>
+                    <div wire:ignore>
+                        <input type="hidden" wire:model.live="scheduled_at" value="{{ $scheduled_at }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal dan jam">
+                    </div>
+                    <p class="mt-1 text-xs text-slate-400">Dipakai untuk urutan kronologis, terutama kalau acara berlangsung lebih dari satu hari.</p>
+                    @error('scheduled_at') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Kegiatan</label>
@@ -145,25 +157,46 @@ new class extends Component
                 <span>Susunan Acara</span>
                 <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{{ $schedules->count() }} kegiatan</span>
             </h3>
-            <div class="divide-y divide-slate-100">
-                @forelse ($schedules as $item)
-                    <div class="flex items-center justify-between gap-3 py-3">
-                        <div class="flex min-w-0 items-center gap-3">
-                            <span class="shrink-0 rounded-md bg-red-50 border border-red-100 px-2.5 py-1 text-xs font-bold text-red-700">{{ $item->time_label }}</span>
-                            <div class="min-w-0">
-                                <p class="font-medium text-slate-900 truncate">{{ $item->activity }}</p>
-                                <p class="text-xs text-slate-400">#{{ $item->sort_order }}</p>
-                            </div>
-                        </div>
-                        <div class="flex shrink-0 gap-2">
-                            <button wire:click="edit('{{ $item->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>
-                            <button wire:click="delete('{{ $item->id }}')" wire:confirm="Hapus jadwal ini?" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>
+            @if ($schedules->isEmpty())
+                <p class="py-4 text-center text-slate-400 text-sm">Belum ada susunan acara. Tambahkan lewat form di samping.</p>
+            @else
+                @php
+                    $groupedSchedules = $schedules->groupBy(fn ($item) => optional($item->scheduled_at)->format('Y-m-d') ?? 'tbd');
+                @endphp
+                @foreach ($groupedSchedules as $dateKey => $daySchedules)
+                    <div wire:key="schedule-group-{{ $dateKey }}" class="mb-5 last:mb-0">
+                        <h4 class="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                            @if ($dateKey === 'tbd')
+                                Waktu Belum Ditentukan
+                            @else
+                                {{ \Illuminate\Support\Carbon::parse($dateKey)->locale('id')->translatedFormat('l, d F Y') }}
+                            @endif
+                        </h4>
+                        <div class="divide-y divide-slate-100">
+                            @foreach ($daySchedules as $item)
+                                <div wire:key="schedule-{{ $item->id }}" class="flex items-center justify-between gap-3 py-3">
+                                    <div class="flex min-w-0 items-center gap-3">
+                                        <span class="shrink-0 rounded-md bg-red-50 border border-red-100 px-2.5 py-1 text-xs font-bold text-red-700">{{ $item->time_label }}</span>
+                                        <div class="min-w-0">
+                                            <p class="font-medium text-slate-900 truncate">{{ $item->activity }}</p>
+                                            <p class="text-xs text-slate-400">
+                                                @if ($item->scheduled_at)
+                                                    {{ $item->scheduled_at->format('H:i') }} &middot;
+                                                @endif
+                                                #{{ $item->sort_order }}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="flex shrink-0 gap-2">
+                                        <button wire:click="edit('{{ $item->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>
+                                        <button wire:click="delete('{{ $item->id }}')" wire:confirm="Hapus jadwal ini?" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>
+                                    </div>
+                                </div>
+                            @endforeach
                         </div>
                     </div>
-                @empty
-                    <p class="py-4 text-center text-slate-400 text-sm">Belum ada susunan acara. Tambahkan lewat form di samping.</p>
-                @endforelse
-            </div>
+                @endforeach
+            @endif
         </div>
     </div>
 </div>
