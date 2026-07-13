@@ -245,11 +245,44 @@ const bindCustomSelect = (select) => {
     optionsList.className = 'merdeka-options';
     popover.append(optionsList);
 
+    const positionPopover = () => {
+        popover.style.top = 'calc(100% + 0.7rem)';
+        popover.style.bottom = 'auto';
+        popover.style.left = '0';
+        popover.style.right = 'auto';
+
+        const buttonRect = button.getBoundingClientRect();
+        const popoverHeight = popover.offsetHeight;
+        const spaceBelow = window.innerHeight - buttonRect.bottom;
+        const spaceAbove = buttonRect.top;
+
+        // Flip upward when there isn't enough room below (e.g. near a fixed
+        // bottom nav bar on mobile) and there's more room above.
+        if (spaceBelow < popoverHeight + 16 && spaceAbove > spaceBelow) {
+            popover.style.top = 'auto';
+            popover.style.bottom = 'calc(100% + 0.7rem)';
+        }
+
+        const rect = popover.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+
+        if (rect.right > viewportWidth - 16) {
+            popover.style.left = 'auto';
+            popover.style.right = '0';
+        }
+
+        if (rect.left < 16) {
+            popover.style.left = '0';
+            popover.style.right = 'auto';
+        }
+    };
+
     const open = () => {
         closeFloatingControls(wrapper);
         wrapper.classList.add('is-open');
         button.classList.add('is-open');
         popover.hidden = false;
+        positionPopover();
     };
 
     const close = () => {
@@ -309,6 +342,12 @@ const bindCustomSelect = (select) => {
     select.addEventListener('change', syncFromSelect);
     select.addEventListener('merdeka:sync-select', syncFromSelect);
     wrapper.addEventListener('merdeka:close-control', close);
+
+    window.addEventListener('resize', () => {
+        if (!popover.hidden) {
+            positionPopover();
+        }
+    });
 
     select.classList.add('merdeka-native-control');
     select.after(wrapper);
@@ -449,8 +488,22 @@ const bindCustomDateTime = (input) => {
     let viewMonth = selectedDate ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
     const positionPopover = () => {
+        popover.style.top = 'calc(100% + 0.7rem)';
+        popover.style.bottom = 'auto';
         popover.style.left = '0';
         popover.style.right = 'auto';
+
+        const buttonRect = button.getBoundingClientRect();
+        const popoverHeight = popover.offsetHeight;
+        const spaceBelow = window.innerHeight - buttonRect.bottom;
+        const spaceAbove = buttonRect.top;
+
+        // Flip upward when there isn't enough room below (e.g. near a fixed
+        // bottom nav bar on mobile) and there's more room above.
+        if (spaceBelow < popoverHeight + 16 && spaceAbove > spaceBelow) {
+            popover.style.top = 'auto';
+            popover.style.bottom = 'calc(100% + 0.7rem)';
+        }
 
         const rect = popover.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
