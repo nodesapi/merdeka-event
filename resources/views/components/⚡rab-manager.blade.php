@@ -18,13 +18,10 @@ new class extends Component
     public $volume = 1;
     public string $satuan = '';
     public $harga_satuan = '';
-    public $jumlah_rencana = '';
     public $realisasi = 0;
     public string $pj = '';
     public string $status = 'belum';
     public string $catatan = '';
-
-    public bool $jumlahManuallyEdited = false;
 
     public string $filter = '';
     public string $search = '';
@@ -50,39 +47,11 @@ new class extends Component
             'volume' => 'required|numeric|min:0',
             'satuan' => 'nullable|string|max:50',
             'harga_satuan' => 'required|numeric|min:0',
-            'jumlah_rencana' => 'required|numeric|min:0',
             'realisasi' => 'nullable|numeric|min:0',
             'pj' => 'nullable|string|max:100',
             'status' => 'required|in:belum,proses,selesai',
             'catatan' => 'nullable|string|max:1000',
         ];
-    }
-
-    public function updatedVolume(): void
-    {
-        $this->recalculateJumlahRencana();
-    }
-
-    public function updatedHargaSatuan(): void
-    {
-        $this->recalculateJumlahRencana();
-    }
-
-    public function updatedJumlahRencana(): void
-    {
-        $this->jumlahManuallyEdited = true;
-    }
-
-    protected function recalculateJumlahRencana(): void
-    {
-        if ($this->jumlahManuallyEdited) {
-            return;
-        }
-
-        $volume = is_numeric($this->volume) ? (float) $this->volume : 0;
-        $harga = is_numeric($this->harga_satuan) ? (float) $this->harga_satuan : 0;
-
-        $this->jumlah_rencana = (string) round($volume * $harga);
     }
 
     public function save(): void
@@ -92,6 +61,8 @@ new class extends Component
         $data['pj'] = $data['pj'] ?: null;
         $data['catatan'] = $data['catatan'] ?: null;
         $data['realisasi'] = $data['realisasi'] ?: 0;
+        // Jumlah Rencana selalu dihitung sistem dari Volume x Harga Satuan — tidak bisa diisi manual, biar tidak ada human error.
+        $data['jumlah_rencana'] = round(((float) $data['volume']) * ((float) $data['harga_satuan']));
 
         if ($this->editingId) {
             RabItem::where('id', $this->editingId)->update($data);
@@ -110,15 +81,13 @@ new class extends Component
         $this->editingId = $item->id;
         $this->kategori = $item->kategori;
         $this->nama_item = $item->nama_item;
-        $this->volume = (string) $item->volume;
+        $this->volume = (string) (float) $item->volume;
         $this->satuan = $item->satuan ?? '';
-        $this->harga_satuan = (string) $item->harga_satuan;
-        $this->jumlah_rencana = (string) $item->jumlah_rencana;
-        $this->realisasi = (string) $item->realisasi;
+        $this->harga_satuan = (string) (float) $item->harga_satuan;
+        $this->realisasi = (string) (float) $item->realisasi;
         $this->pj = $item->pj ?? '';
         $this->status = $item->status;
         $this->catatan = $item->catatan ?? '';
-        $this->jumlahManuallyEdited = true;
     }
 
     public function delete(string $id): void
@@ -221,10 +190,9 @@ new class extends Component
 
     public function resetForm(): void
     {
-        $this->reset(['editingId', 'kategori', 'nama_item', 'satuan', 'harga_satuan', 'jumlah_rencana', 'realisasi', 'pj', 'catatan']);
+        $this->reset(['editingId', 'kategori', 'nama_item', 'satuan', 'harga_satuan', 'realisasi', 'pj', 'catatan']);
         $this->volume = 1;
         $this->status = 'belum';
-        $this->jumlahManuallyEdited = false;
     }
 
     public function dismissAlert(): void
@@ -357,13 +325,10 @@ new class extends Component
                 </div>
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-slate-600">Jumlah Rencana (Rp)</label>
-                    <div class="relative" data-rupiah-input>
-                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-sm font-bold text-slate-500">Rp</span>
-                        <input type="text" value="{{ $jumlah_rencana }}" inputmode="numeric" autocomplete="off" data-rupiah-visible class="w-full rounded-md border border-slate-300 py-2.5 pl-12 pr-4 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="100.000">
-                        <input type="hidden" wire:model.live="jumlah_rencana" value="{{ $jumlah_rencana }}" data-rupiah-hidden>
+                    <div class="w-full rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700">
+                        Rp{{ number_format((is_numeric($volume) ? (float) $volume : 0) * (is_numeric($harga_satuan) ? (float) $harga_satuan : 0), 0, ',', '.') }}
                     </div>
-                    <p class="mt-1 text-xs text-slate-400">Otomatis dari Volume × Harga Satuan, bisa diubah manual.</p>
-                    @error('jumlah_rencana') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                    <p class="mt-1 text-xs text-slate-400">Otomatis dihitung sistem dari Volume × Harga Satuan.</p>
                 </div>
                 <div>
                     <label class="mb-1.5 block text-xs font-semibold text-slate-600">Realisasi (Rp) <span class="font-normal text-slate-400">(opsional)</span></label>

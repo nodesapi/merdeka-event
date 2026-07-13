@@ -66,8 +66,8 @@ new class extends Component
         $this->editingId = $item->id;
         $this->kategori = $item->kategori;
         $this->sumber = $item->sumber;
-        $this->target = (string) $item->target;
-        $this->realisasi = (string) $item->realisasi;
+        $this->target = (string) (float) $item->target;
+        $this->realisasi = (string) (float) $item->realisasi;
         $this->catatan = $item->catatan ?? '';
     }
 
