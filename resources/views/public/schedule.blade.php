@@ -9,8 +9,8 @@
                     <p class="mt-1 text-sm leading-6 text-stone-500">Jadwal rangkaian acara {{ $event?->name ?? 'HUT RI' }}.</p>
                 </div>
             </div>
-            @if ($event?->schedule_label)
-                <span class="shrink-0 rounded-full bg-red-50 px-3.5 py-1.5 text-sm font-semibold text-red-700">{{ $event->schedule_label }}</span>
+            @if ($scheduleRangeLabel)
+                <span class="shrink-0 rounded-full bg-red-50 px-3.5 py-1.5 text-sm font-semibold text-red-700">{{ $scheduleRangeLabel }}</span>
             @endif
         </div>
 

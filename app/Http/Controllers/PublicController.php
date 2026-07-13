@@ -91,9 +91,12 @@ class PublicController extends Controller
             ? $event->eventSchedules()->orderBy('scheduled_at')->orderBy('sort_order')->orderBy('time_label')->get()
             : collect();
 
+        $scheduleRangeLabel = Event::formatDateList($schedules->pluck('scheduled_at'));
+
         return view('public.schedule', [
             'event' => $event,
             'schedules' => $schedules,
+            'scheduleRangeLabel' => $scheduleRangeLabel,
         ]);
     }
 

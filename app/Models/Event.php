@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Traits\HasUuidV7;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Support\Carbon;
 
 #[Fillable([
     'name',
@@ -71,21 +72,22 @@ class Event extends Model
     }
 
     /**
-     * Human-friendly Indonesian schedule label that handles single-day and
-     * multi-day events (e.g. "17 Agustus 2026" or "16 – 17 Agustus 2026").
+     * Human-friendly Indonesian date range label that handles single-day and
+     * multi-day ranges (e.g. "17 Agustus 2026" or "16 – 17 Agustus 2026").
      */
-    public function getScheduleLabelAttribute(): ?string
+    public static function formatDateRange(?Carbon $start, ?Carbon $end): ?string
     {
-        $start = $this->start_date?->locale('id');
         if (! $start) {
             return null;
         }
 
-        $end = $this->end_date?->locale('id');
+        $start = $start->locale('id');
 
         if (! $end || $start->isSameDay($end)) {
             return $start->translatedFormat('d F Y');
         }
+
+        $end = $end->locale('id');
 
         // Same month & year → "16 – 17 Agustus 2026"
         if ($start->isSameMonth($end)) {
@@ -99,6 +101,54 @@ class Event extends Model
 
         // Different year → full range
         return $start->translatedFormat('d F Y') . ' – ' . $end->translatedFormat('d F Y');
+    }
+
+    /**
+     * Human-friendly Indonesian schedule label for the event's own start/end date.
+     */
+    public function getScheduleLabelAttribute(): ?string
+    {
+        return static::formatDateRange($this->start_date, $this->end_date);
+    }
+
+    /**
+     * Human-friendly Indonesian label listing distinct dates (not a continuous
+     * range) — e.g. "9, 16 & 17 Agustus 2026" for activities that happen on
+     * specific separate days rather than every day in between.
+     */
+    public static function formatDateList(iterable $dates): ?string
+    {
+        $dates = collect($dates)
+            ->filter()
+            ->unique(fn (Carbon $date) => $date->format('Y-m-d'))
+            ->sort()
+            ->values();
+
+        if ($dates->isEmpty()) {
+            return null;
+        }
+
+        if ($dates->count() === 1) {
+            return $dates->first()->locale('id')->translatedFormat('d F Y');
+        }
+
+        $sameMonth = $dates->every(
+            fn (Carbon $date) => $date->isSameMonth($dates->first()) && $date->year === $dates->first()->year
+        );
+
+        if ($sameMonth) {
+            $days = $dates->map(fn (Carbon $date) => $date->translatedFormat('d'))->all();
+            $last = array_pop($days);
+
+            $joined = $days ? implode(', ', $days) . ' & ' . $last : $last;
+
+            return $joined . ' ' . $dates->first()->locale('id')->translatedFormat('F Y');
+        }
+
+        $parts = $dates->map(fn (Carbon $date) => $date->locale('id')->translatedFormat('d F Y'))->all();
+        $last = array_pop($parts);
+
+        return $parts ? implode(', ', $parts) . ' & ' . $last : $last;
     }
 
     /**
