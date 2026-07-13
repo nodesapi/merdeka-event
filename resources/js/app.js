@@ -240,40 +240,37 @@ const bindCustomSelect = (select) => {
     const popover = document.createElement('div');
     popover.className = 'merdeka-popover';
     popover.hidden = true;
+    // Rendered directly on <body> (not inside the field's card) so it can
+    // never be clipped by a card/section's overflow — some mobile browsers
+    // (notably iOS Safari) clip position:absolute popovers whose ancestor
+    // has any non-visible overflow, even overflow-x-only rules.
+    popover.style.position = 'fixed';
+    popover.dataset.floatingControl = 'select';
 
     const optionsList = document.createElement('div');
     optionsList.className = 'merdeka-options';
     popover.append(optionsList);
 
     const positionPopover = () => {
-        popover.style.top = 'calc(100% + 0.7rem)';
-        popover.style.bottom = 'auto';
-        popover.style.left = '0';
-        popover.style.right = 'auto';
-
         const buttonRect = button.getBoundingClientRect();
         const popoverHeight = popover.offsetHeight;
         const spaceBelow = window.innerHeight - buttonRect.bottom;
         const spaceAbove = buttonRect.top;
 
+        popover.style.width = buttonRect.width + 'px';
+        popover.style.right = 'auto';
+
+        const maxLeft = Math.max(16, window.innerWidth - buttonRect.width - 16);
+        popover.style.left = Math.min(Math.max(buttonRect.left, 16), maxLeft) + 'px';
+
         // Flip upward when there isn't enough room below (e.g. near a fixed
         // bottom nav bar on mobile) and there's more room above.
         if (spaceBelow < popoverHeight + 16 && spaceAbove > spaceBelow) {
             popover.style.top = 'auto';
-            popover.style.bottom = 'calc(100% + 0.7rem)';
-        }
-
-        const rect = popover.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-
-        if (rect.right > viewportWidth - 16) {
-            popover.style.left = 'auto';
-            popover.style.right = '0';
-        }
-
-        if (rect.left < 16) {
-            popover.style.left = '0';
-            popover.style.right = 'auto';
+            popover.style.bottom = (window.innerHeight - buttonRect.top + 12) + 'px';
+        } else {
+            popover.style.bottom = 'auto';
+            popover.style.top = (buttonRect.bottom + 12) + 'px';
         }
     };
 
@@ -351,7 +348,8 @@ const bindCustomSelect = (select) => {
 
     select.classList.add('merdeka-native-control');
     select.after(wrapper);
-    wrapper.append(button, popover);
+    wrapper.append(button);
+    document.body.append(popover);
 
     syncFromSelect();
     select.dataset.customSelectReady = 'true';
@@ -438,6 +436,9 @@ const bindCustomDateTime = (input) => {
     const popover = document.createElement('div');
     popover.className = 'merdeka-popover merdeka-datetime-panel';
     popover.hidden = true;
+    // See bindCustomSelect for why this is portalled to <body> as position:fixed.
+    popover.style.position = 'fixed';
+    popover.dataset.floatingControl = 'datetime';
 
     popover.innerHTML = `
         <div class="merdeka-datetime-header">
@@ -488,34 +489,25 @@ const bindCustomDateTime = (input) => {
     let viewMonth = selectedDate ? new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
     const positionPopover = () => {
-        popover.style.top = 'calc(100% + 0.7rem)';
-        popover.style.bottom = 'auto';
-        popover.style.left = '0';
-        popover.style.right = 'auto';
-
         const buttonRect = button.getBoundingClientRect();
+        const popoverWidth = popover.offsetWidth;
         const popoverHeight = popover.offsetHeight;
         const spaceBelow = window.innerHeight - buttonRect.bottom;
         const spaceAbove = buttonRect.top;
+
+        popover.style.right = 'auto';
+
+        const maxLeft = Math.max(16, window.innerWidth - popoverWidth - 16);
+        popover.style.left = Math.min(Math.max(buttonRect.left, 16), maxLeft) + 'px';
 
         // Flip upward when there isn't enough room below (e.g. near a fixed
         // bottom nav bar on mobile) and there's more room above.
         if (spaceBelow < popoverHeight + 16 && spaceAbove > spaceBelow) {
             popover.style.top = 'auto';
-            popover.style.bottom = 'calc(100% + 0.7rem)';
-        }
-
-        const rect = popover.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-
-        if (rect.right > viewportWidth - 16) {
-            popover.style.left = 'auto';
-            popover.style.right = '0';
-        }
-
-        if (rect.left < 16) {
-            popover.style.left = '0';
-            popover.style.right = 'auto';
+            popover.style.bottom = (window.innerHeight - buttonRect.top + 12) + 'px';
+        } else {
+            popover.style.bottom = 'auto';
+            popover.style.top = (buttonRect.bottom + 12) + 'px';
         }
     };
 
@@ -681,7 +673,8 @@ const bindCustomDateTime = (input) => {
 
     input.classList.add('merdeka-native-control');
     input.after(wrapper);
-    wrapper.append(button, popover);
+    wrapper.append(button);
+    document.body.append(popover);
 
     initCustomSelects(popover);
     updateButtonText();
