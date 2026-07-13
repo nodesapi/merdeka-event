@@ -251,14 +251,14 @@ new class extends Component
 
         $event = Event::where('status', 'active')->latest('start_date')->first()
             ?? Event::latest('start_date')->first();
-        $iuranTarget = (float) ($event?->contribution_target_amount ?? 0);
+        $iuranRealisasi = (float) ($event?->iuran_realisasi ?? 0);
 
         return [
             'items' => $query->orderBy('kategori')->orderBy('nama_item')->get(),
             'existingCategories' => RabItem::query()->distinct()->orderBy('kategori')->pluck('kategori'),
             'totalRencana' => (float) RabItem::sum('jumlah_rencana'),
             'totalRealisasi' => (float) RabItem::sum('realisasi'),
-            'totalEstimasiDana' => $iuranTarget + (float) RabFundingSource::sum('target'),
+            'totalRealisasiDana' => $iuranRealisasi + (float) RabFundingSource::sum('realisasi'),
         ];
     }
 };
@@ -276,14 +276,14 @@ new class extends Component
         $totalSelisih = $totalRencana - $totalRealisasi;
     @endphp
 
-    {{-- Estimasi dana (Sumber Dana) vs kebutuhan anggaran (RAB) --}}
+    {{-- Realisasi dana terkumpul (Sumber Dana) vs kebutuhan anggaran (RAB) --}}
     @php
-        $selisihEstimasi = $totalEstimasiDana - $totalRencana;
+        $selisihEstimasi = $totalRealisasiDana - $totalRencana;
     @endphp
     <div class="mb-6 flex flex-col gap-4 rounded-lg border p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between {{ $selisihEstimasi >= 0 ? 'border-emerald-600 bg-emerald-600' : 'border-red-600 bg-red-600' }} text-white">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">{{ $selisihEstimasi >= 0 ? 'Surplus — Estimasi Dana Cukup' : 'Defisit — Estimasi Dana Kurang' }}</p>
-            <p class="mt-1 text-sm text-white/90">Total Estimasi Dana (Sumber Dana) Rp{{ number_format($totalEstimasiDana, 0, ',', '.') }} dibanding Total Kebutuhan Anggaran (RAB) Rp{{ number_format($totalRencana, 0, ',', '.') }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-white/80">{{ $selisihEstimasi >= 0 ? 'Sudah Tercukupi' : 'Masih Kurang' }}</p>
+            <p class="mt-1 text-sm text-white/90">Realisasi Dana Terkumpul (Sumber Dana) Rp{{ number_format($totalRealisasiDana, 0, ',', '.') }} dibanding Total Kebutuhan Anggaran / Target Dana (RAB) Rp{{ number_format($totalRencana, 0, ',', '.') }}</p>
         </div>
         <p class="text-3xl font-extrabold sm:text-4xl">Rp{{ number_format(abs($selisihEstimasi), 0, ',', '.') }}</p>
     </div>

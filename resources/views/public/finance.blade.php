@@ -107,6 +107,11 @@
                                 <td class="py-2.5 pr-4 text-right align-top">Rp{{ number_format($iuranTarget, 0, ',', '.') }}</td>
                                 <td class="py-2.5 text-right align-top font-semibold text-emerald-700">Rp{{ number_format($iuranRealisasi, 0, ',', '.') }}</td>
                             </tr>
+                            @if ($sisaSetelahIuran > 0)
+                                <tr>
+                                    <td colspan="4" class="py-1.5 pr-4 pl-6 text-xs italic text-amber-700">Sisa kebutuhan setelah Iuran: Rp{{ number_format($sisaSetelahIuran, 0, ',', '.') }} — perlu dicari dari Sponsor/Donasi/sumber lain di bawah.</td>
+                                </tr>
+                            @endif
                         @endif
                         @forelse ($fundingByCategory as $kategori => $group)
                             <tr class="bg-stone-50">
@@ -129,8 +134,8 @@
                     @if ($fundingByCategory->isNotEmpty() || ($event && $event->recommended_contribution_amount && $event->contribution_target_households))
                         <tfoot>
                             <tr class="border-t-2 border-stone-200 font-bold text-stone-900">
-                                <td class="py-2.5 pr-4" colspan="2">Total Estimasi Dana</td>
-                                <td class="py-2.5 pr-4 text-right">Rp{{ number_format($totalEstimasiDana, 0, ',', '.') }}</td>
+                                <td class="py-2.5 pr-4" colspan="2">Total</td>
+                                <td class="py-2.5 pr-4 text-right">Rp{{ number_format($iuranTarget + $fundingByCategory->sum('target'), 0, ',', '.') }}</td>
                                 <td class="py-2.5 text-right">Rp{{ number_format($totalRealisasiDana, 0, ',', '.') }}</td>
                             </tr>
                         </tfoot>
@@ -140,12 +145,12 @@
         </div>
 
         @php
-            $selisihEstimasi = $totalEstimasiDana - $totalRabRencana;
+            $selisihEstimasi = $totalRealisasiDana - $totalRabRencana;
         @endphp
         <div class="mt-4 flex flex-col gap-4 rounded-xl border p-5 text-white shadow-sm sm:flex-row sm:items-center sm:justify-between {{ $selisihEstimasi >= 0 ? 'border-emerald-200 bg-emerald-700' : 'border-red-200 bg-red-700' }}">
             <div>
-                <p class="text-xs font-bold uppercase tracking-wide text-white/80">{{ $selisihEstimasi >= 0 ? 'Surplus — Estimasi Dana Cukup' : 'Defisit — Estimasi Dana Kurang' }}</p>
-                <p class="mt-1 text-sm text-white/90">Total Estimasi Dana Rp{{ number_format($totalEstimasiDana, 0, ',', '.') }} dibanding Total Kebutuhan Anggaran (RAB) Rp{{ number_format($totalRabRencana, 0, ',', '.') }}</p>
+                <p class="text-xs font-bold uppercase tracking-wide text-white/80">{{ $selisihEstimasi >= 0 ? 'Sudah Tercukupi' : 'Masih Kurang' }}</p>
+                <p class="mt-1 text-sm text-white/90">Realisasi Dana Terkumpul Rp{{ number_format($totalRealisasiDana, 0, ',', '.') }} dibanding Total Kebutuhan Anggaran / Target Dana (RAB) Rp{{ number_format($totalRabRencana, 0, ',', '.') }}</p>
             </div>
             <p class="text-3xl font-extrabold sm:text-4xl">Rp{{ number_format(abs($selisihEstimasi), 0, ',', '.') }}</p>
         </div>

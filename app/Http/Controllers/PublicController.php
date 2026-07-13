@@ -190,7 +190,8 @@ class PublicController extends Controller
         $iuranTarget = (float) ($event?->contribution_target_amount ?? 0);
         $iuranRealisasi = (float) ($event?->iuran_realisasi ?? 0);
 
-        $totalEstimasiDana = $iuranTarget + (float) $fundingByCategory->sum('target');
+        // Target Dana = Total Kebutuhan Anggaran (RAB), bukan hasil jumlah target tiap sumber dana.
+        $sisaSetelahIuran = max(0, $totalRabRencana - $iuranTarget);
         $totalRealisasiDana = $iuranRealisasi + (float) $fundingByCategory->sum('realisasi');
 
         return view('public.finance', [
@@ -207,7 +208,7 @@ class PublicController extends Controller
             'fundingByCategory' => $fundingByCategory,
             'iuranTarget' => $iuranTarget,
             'iuranRealisasi' => $iuranRealisasi,
-            'totalEstimasiDana' => $totalEstimasiDana,
+            'sisaSetelahIuran' => $sisaSetelahIuran,
             'totalRealisasiDana' => $totalRealisasiDana,
         ]);
     }

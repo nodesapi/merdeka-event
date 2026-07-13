@@ -2,6 +2,7 @@
 
 use App\Models\Event;
 use App\Models\RabFundingSource;
+use App\Models\RabItem;
 use Livewire\Component;
 
 new class extends Component
@@ -95,16 +96,21 @@ new class extends Component
         $iuranTarget = (float) ($event?->contribution_target_amount ?? 0);
         $iuranRealisasi = (float) ($event?->iuran_realisasi ?? 0);
 
-        $manualTarget = (float) RabFundingSource::sum('target');
         $manualRealisasi = (float) RabFundingSource::sum('realisasi');
+
+        // Target Dana = Total Kebutuhan Anggaran (RAB) — bukan hasil jumlah target tiap sumber dana.
+        $totalKebutuhanRab = (float) RabItem::sum('jumlah_rencana');
+        $sisaSetelahIuran = max(0, $totalKebutuhanRab - $iuranTarget);
+        $totalRealisasiDana = $iuranRealisasi + $manualRealisasi;
 
         return [
             'event' => $event,
             'items' => RabFundingSource::orderBy('kategori')->orderBy('sumber')->get(),
             'iuranTarget' => $iuranTarget,
             'iuranRealisasi' => $iuranRealisasi,
-            'totalTarget' => $iuranTarget + $manualTarget,
-            'totalRealisasi' => $iuranRealisasi + $manualRealisasi,
+            'totalKebutuhanRab' => $totalKebutuhanRab,
+            'sisaSetelahIuran' => $sisaSetelahIuran,
+            'totalRealisasiDana' => $totalRealisasiDana,
         ];
     }
 };
@@ -119,20 +125,20 @@ new class extends Component
     @endif
 
     @php
-        $selisihDana = $totalTarget - $totalRealisasi;
+        $selisihDana = $totalKebutuhanRab - $totalRealisasiDana;
     @endphp
 
     <div class="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div class="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Target Dana</p>
-            <p class="mt-2 text-3xl font-extrabold text-slate-900">Rp{{ number_format($totalTarget, 0, ',', '.') }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">Target Dana (Kebutuhan RAB)</p>
+            <p class="mt-2 text-3xl font-extrabold text-slate-900">Rp{{ number_format($totalKebutuhanRab, 0, ',', '.') }}</p>
         </div>
         <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Realisasi Dana</p>
-            <p class="mt-2 text-3xl font-extrabold text-emerald-700">Rp{{ number_format($totalRealisasi, 0, ',', '.') }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Realisasi Dana Terkumpul</p>
+            <p class="mt-2 text-3xl font-extrabold text-emerald-700">Rp{{ number_format($totalRealisasiDana, 0, ',', '.') }}</p>
         </div>
         <div class="rounded-lg border p-5 shadow-sm {{ $selisihDana <= 0 ? 'border-emerald-600 bg-emerald-600' : 'border-amber-500 bg-amber-500' }} text-white">
-            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/80">{{ $selisihDana <= 0 ? 'Target Tercapai' : 'Kurang dari Target' }}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-white/80">{{ $selisihDana <= 0 ? 'Sudah Tercukupi' : 'Masih Kurang' }}</p>
             <p class="mt-2 text-3xl font-extrabold">Rp{{ number_format(abs($selisihDana), 0, ',', '.') }}</p>
         </div>
     </div>
@@ -167,7 +173,7 @@ new class extends Component
                         <input type="text" value="{{ $target }}" inputmode="numeric" autocomplete="off" data-rupiah-visible class="w-full rounded-md border border-slate-300 py-2.5 pl-12 pr-4 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" placeholder="1.000.000">
                         <input type="hidden" wire:model="target" value="{{ $target }}" data-rupiah-hidden>
                     </div>
-                    <p class="mt-1 text-xs text-slate-400">Perkiraan/target dana dari sumber ini.</p>
+                    <p class="mt-1 text-xs text-slate-400">Perkiraan/janji (pledge) dana dari sumber ini, sebagai catatan — tidak dijumlah ke Target Dana utama.</p>
                     @error('target') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
@@ -235,6 +241,7 @@ new class extends Component
                             </table>
                         </div>
                         <p class="mt-1.5 text-xs text-slate-400">Realisasi dihitung realtime dari transaksi Form Warga (iuran) yang sudah terverifikasi. Untuk ubah nominal/target iuran, atur lewat <a href="{{ route('admin.event') }}" class="font-semibold text-emerald-700 hover:underline">Acara &amp; Jadwal</a>.</p>
+                        <p class="mt-1 text-xs font-semibold text-amber-700">Sisa kebutuhan setelah Iuran: Rp{{ number_format($sisaSetelahIuran, 0, ',', '.') }} — ini yang perlu dicari dari Sponsor/Donasi/sumber lain di bawah.</p>
                     @else
                         <div class="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-4">
                             <p class="text-xs text-slate-500">
