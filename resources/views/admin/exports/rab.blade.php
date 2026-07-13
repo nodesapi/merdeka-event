@@ -22,14 +22,24 @@
         .category-heading { margin: 20px 0 8px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #c1121f; }
         .category-heading:first-of-type { margin-top: 0; }
         table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-        th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; white-space: nowrap; }
         th { background: #f1f5f9; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #475569; }
-        td.num, th.num { text-align: right; white-space: nowrap; }
+        td.num, th.num { text-align: right; }
         .in { color: #047857; font-weight: 700; }
         .out { color: #b91c1c; font-weight: 700; }
         .grand-total table { margin-top: 12px; }
         .grand-total td { font-weight: 700; border-top: 2px solid #cbd5e1; }
+        .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
         @media print { .toolbar { display: none; } body { padding: 0; } }
+        @media (max-width: 640px) {
+            body { padding: 16px; }
+            .head { flex-wrap: wrap; }
+            .head-brand img { height: 32px; }
+            h1 { font-size: 17px; }
+            .summary { flex-direction: column; }
+            .summary > div { padding: 10px 14px; }
+            th, td { padding: 6px 8px; font-size: 11px; }
+        }
     </style>
 </head>
 <body>
@@ -65,48 +75,52 @@
         @endphp
         @foreach ($groupedItems as $kategori => $groupItems)
             <p class="category-heading">{{ $kategori }}</p>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Item</th>
-                        <th>Vol × Satuan</th>
-                        <th class="num">Harga Satuan</th>
-                        <th class="num">Rencana</th>
-                        <th class="num">Realisasi</th>
-                        <th class="num">Selisih</th>
-                        <th>PJ</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($groupItems as $item)
+            <div class="table-scroll">
+                <table>
+                    <thead>
                         <tr>
-                            <td>{{ $item->nama_item }}</td>
-                            <td>{{ (float) $item->volume }}{{ $item->satuan ? ' ' . $item->satuan : '' }}</td>
-                            <td class="num">Rp{{ number_format($item->harga_satuan, 0, ',', '.') }}</td>
-                            <td class="num">Rp{{ number_format($item->jumlah_rencana, 0, ',', '.') }}</td>
-                            <td class="num">Rp{{ number_format($item->realisasi, 0, ',', '.') }}</td>
-                            <td class="num {{ $item->selisih >= 0 ? 'in' : 'out' }}">Rp{{ number_format(abs($item->selisih), 0, ',', '.') }}</td>
-                            <td>{{ $item->pj ?: '-' }}</td>
-                            <td>{{ ['belum' => 'Belum', 'proses' => 'Proses', 'selesai' => 'Selesai'][$item->status] ?? $item->status }}</td>
+                            <th>Item</th>
+                            <th>Vol × Satuan</th>
+                            <th class="num">Harga Satuan</th>
+                            <th class="num">Rencana</th>
+                            <th class="num">Realisasi</th>
+                            <th class="num">Selisih</th>
+                            <th>PJ</th>
+                            <th>Status</th>
                         </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach ($groupItems as $item)
+                            <tr>
+                                <td>{{ $item->nama_item }}</td>
+                                <td>{{ (float) $item->volume }}{{ $item->satuan ? ' ' . $item->satuan : '' }}</td>
+                                <td class="num">Rp{{ number_format($item->harga_satuan, 0, ',', '.') }}</td>
+                                <td class="num">Rp{{ number_format($item->jumlah_rencana, 0, ',', '.') }}</td>
+                                <td class="num">Rp{{ number_format($item->realisasi, 0, ',', '.') }}</td>
+                                <td class="num {{ $item->selisih >= 0 ? 'in' : 'out' }}">Rp{{ number_format(abs($item->selisih), 0, ',', '.') }}</td>
+                                <td>{{ $item->pj ?: '-' }}</td>
+                                <td>{{ ['belum' => 'Belum', 'proses' => 'Proses', 'selesai' => 'Selesai'][$item->status] ?? $item->status }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         @endforeach
 
         <div class="grand-total">
-            <table>
-                <tbody>
-                    <tr>
-                        <td colspan="3">Total Keseluruhan</td>
-                        <td class="num">Rp{{ number_format($totalRencana, 0, ',', '.') }}</td>
-                        <td class="num">Rp{{ number_format($totalRealisasi, 0, ',', '.') }}</td>
-                        <td class="num {{ $totalSelisih >= 0 ? 'in' : 'out' }}">Rp{{ number_format(abs($totalSelisih), 0, ',', '.') }}</td>
-                        <td colspan="2"></td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="table-scroll">
+                <table>
+                    <tbody>
+                        <tr>
+                            <td colspan="3">Total Keseluruhan</td>
+                            <td class="num">Rp{{ number_format($totalRencana, 0, ',', '.') }}</td>
+                            <td class="num">Rp{{ number_format($totalRealisasi, 0, ',', '.') }}</td>
+                            <td class="num {{ $totalSelisih >= 0 ? 'in' : 'out' }}">Rp{{ number_format(abs($totalSelisih), 0, ',', '.') }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     @endif
 
