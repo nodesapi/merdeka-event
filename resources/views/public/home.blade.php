@@ -56,7 +56,7 @@
                             <a href="{{ route('public.galeri') }}" class="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:bg-white/15">
                                 <x-icon name="image" class="h-4 w-4 shrink-0" /> Keseruan HUT RI
                             </a>
-                            <a href="{{ route('public.bazaar-form') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
+                            <a href="{{ route('public.bazaar-form') }}" class="col-span-2 inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#9a0e18] shadow-lg shadow-black/20 transition hover:bg-amber-50">
                                 <x-icon name="cash" class="h-4 w-4 shrink-0" /> Daftar Bazaar
                             </a>
                         </div>
