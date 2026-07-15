@@ -717,6 +717,10 @@ class PublicController extends Controller
             return response()->json(['found' => false, 'message' => 'Belum ada acara aktif.'], 404);
         }
 
+        if (! $event->isLombaRegistrationOpen()) {
+            return response()->json(['found' => false, 'message' => 'Pendaftaran lomba belum dibuka.'], 403);
+        }
+
         $number = trim((string) $request->query('no', ''));
 
         if ($number === '') {
@@ -780,6 +784,10 @@ class PublicController extends Controller
 
         if (! $event) {
             return back()->withErrors(['registration_number' => 'Belum ada acara aktif.'])->withInput();
+        }
+
+        if (! $event->isLombaRegistrationOpen()) {
+            return back()->withErrors(['registration_number' => 'Pendaftaran lomba belum dibuka.'])->withInput();
         }
 
         $validated = $request->validate([

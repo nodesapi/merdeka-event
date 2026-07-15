@@ -19,6 +19,7 @@ new class extends Component
     public $start_date = '';
     public $end_date = '';
     public $registration_closes_at = '';
+    public $lomba_registration_opens_at = '';
     public $status = 'active';
     public $recommended_contribution_amount = '';
     public $contribution_guidance = '';
@@ -43,6 +44,7 @@ new class extends Component
             $this->start_date = $event->start_date?->format('Y-m-d\TH:i');
             $this->end_date = $event->end_date?->format('Y-m-d\TH:i');
             $this->registration_closes_at = $event->registration_closes_at?->format('Y-m-d\TH:i');
+            $this->lomba_registration_opens_at = $event->lomba_registration_opens_at?->format('Y-m-d\TH:i');
             $this->status = $event->status;
             $this->recommended_contribution_amount = $event->recommended_contribution_amount ? (string) (float) $event->recommended_contribution_amount : '';
             $this->contribution_guidance = $event->contribution_guidance;
@@ -74,6 +76,7 @@ new class extends Component
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
             'registration_closes_at' => 'nullable|date',
+            'lomba_registration_opens_at' => 'nullable|date',
             'status' => 'required|in:draft,active,completed,cancelled',
             'recommended_contribution_amount' => 'nullable|numeric|min:0',
             'contribution_guidance' => 'nullable|string',
@@ -276,6 +279,15 @@ new class extends Component
                                         </div>
                                         <p class="mt-1.5 text-xs text-slate-500">Ditampilkan sebagai hitung mundur di halaman utama warga. Kosongkan jika tidak ingin menampilkan batas waktu.</p>
                                         @error('registration_closes_at') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                    </div>
+
+                                    <div>
+                                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Tanggal Buka Pendaftaran Lomba</label>
+                                        <div wire:ignore>
+                                            <input type="hidden" wire:model.live="lomba_registration_opens_at" value="{{ $lomba_registration_opens_at }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal buka (opsional)">
+                                        </div>
+                                        <p class="mt-1.5 text-xs text-slate-500">Sebelum tanggal ini, halaman Daftar Lomba akan menampilkan pesan bahwa pendaftaran belum dibuka. Kosongkan jika pendaftaran lomba langsung dibuka.</p>
+                                        @error('lomba_registration_opens_at') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                                     </div>
 
                                     <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">

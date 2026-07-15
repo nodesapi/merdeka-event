@@ -15,6 +15,10 @@
         <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
             <p class="text-sm font-semibold">Pendaftaran lomba belum dibuka karena belum ada acara aktif.</p>
         </div>
+    @elseif (! $event->isLombaRegistrationOpen())
+        <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
+            <p class="text-sm font-semibold">Pendaftaran Lomba akan dibuka pada tanggal {{ $event->lomba_registration_opens_at->locale('id')->translatedFormat('d F Y, H:i') }} WIB.</p>
+        </div>
     @elseif ($competitions->isEmpty())
         <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
             <p class="text-sm font-semibold">Belum ada lomba yang dipublikasikan panitia.</p>

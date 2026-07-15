@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
     'start_date',
     'end_date',
     'registration_closes_at',
+    'lomba_registration_opens_at',
     'status',
     'recommended_contribution_amount',
     'contribution_guidance',
@@ -74,9 +75,18 @@ class Event extends Model
             'start_date' => 'datetime',
             'end_date' => 'datetime',
             'registration_closes_at' => 'datetime',
+            'lomba_registration_opens_at' => 'datetime',
             'recommended_contribution_amount' => 'decimal:2',
             'contribution_target_households' => 'integer',
         ];
+    }
+
+    /**
+     * Apakah pendaftaran lomba sudah boleh dibuka ke publik.
+     */
+    public function isLombaRegistrationOpen(): bool
+    {
+        return $this->lomba_registration_opens_at === null || $this->lomba_registration_opens_at->isPast();
     }
 
     /**
