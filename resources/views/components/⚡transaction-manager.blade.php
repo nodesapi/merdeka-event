@@ -187,13 +187,13 @@ new class extends Component
                     @error('resident_block') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
+                    <div class="min-w-0">
                         <label class="mb-1.5 block text-xs font-semibold text-slate-600">Bank / Metode <span class="font-normal text-slate-400">(opsional)</span></label>
-                        <input type="text" wire:model="bank_name" class="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="BCA / Tunai">
+                        <input type="text" wire:model="bank_name" class="w-full min-w-0 rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="BCA / Tunai">
                     </div>
-                    <div>
+                    <div class="min-w-0">
                         <label class="mb-1.5 block text-xs font-semibold text-slate-600">No. Rek / Ref <span class="font-normal text-slate-400">(opsional)</span></label>
-                        <input type="text" wire:model="account_number" class="w-full rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="8800012345">
+                        <input type="text" wire:model="account_number" class="w-full min-w-0 rounded-md border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="8800012345">
                     </div>
                 </div>
                 <button type="submit" class="w-full rounded-md bg-red-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700">Simpan Transaksi</button>
