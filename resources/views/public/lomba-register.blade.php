@@ -16,9 +16,45 @@
             <p class="text-sm font-semibold">Pendaftaran lomba belum dibuka karena belum ada acara aktif.</p>
         </div>
     @elseif (! $event->isLombaRegistrationOpen())
-        <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
-            <p class="text-sm font-semibold">Pendaftaran Lomba akan dibuka pada tanggal {{ $event->lomba_registration_opens_at->locale('id')->translatedFormat('d F Y, H:i') }} WIB.</p>
-        </div>
+        <section class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
+            <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
+                <div>
+                    <p class="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-amber-700 sm:justify-start">
+                        <x-icon name="clock" class="h-4 w-4" /> Pendaftaran Lomba Belum Dibuka
+                    </p>
+                    <p class="mt-1 text-sm text-stone-600">Pendaftaran dibuka mulai {{ $event->lomba_registration_opens_at->locale('id')->translatedFormat('d F Y, H:i') }} WIB.</p>
+                </div>
+                <div id="lomba-open-countdown" data-target="{{ $event->lomba_registration_opens_at->timestamp }}" class="grid grid-cols-4 gap-2 text-center">
+                    @foreach (['days' => 'Hari', 'hours' => 'Jam', 'mins' => 'Menit', 'secs' => 'Detik'] as $key => $label)
+                        <div class="rounded-xl bg-white/70 px-3 py-2">
+                            <span data-cd="{{ $key }}" class="block text-xl font-black tabular-nums text-amber-800 sm:text-2xl">00</span>
+                            <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-wide text-amber-700/70">{{ $label }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+
+        <script>
+            (function () {
+                var el = document.getElementById('lomba-open-countdown');
+                if (!el) return;
+                var target = parseInt(el.dataset.target, 10) * 1000;
+                var pad = function (n) { return String(n).padStart(2, '0'); };
+                var set = function (k, v) { var s = el.querySelector('[data-cd=' + k + ']'); if (s) s.textContent = pad(v); };
+                function tick() {
+                    var d = target - Date.now();
+                    if (d < 0) d = 0;
+                    set('days', Math.floor(d / 86400000));
+                    set('hours', Math.floor((d % 86400000) / 3600000));
+                    set('mins', Math.floor((d % 3600000) / 60000));
+                    set('secs', Math.floor((d % 60000) / 1000));
+                    if (d <= 0) location.reload();
+                }
+                tick();
+                setInterval(tick, 1000);
+            })();
+        </script>
     @elseif ($competitions->isEmpty())
         <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
             <p class="text-sm font-semibold">Belum ada lomba yang dipublikasikan panitia.</p>

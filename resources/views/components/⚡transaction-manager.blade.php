@@ -136,9 +136,9 @@ new class extends Component
         </div>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.5fr)]">
+    <div class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.5fr)]">
         {{-- Form --}}
-        <div class="h-fit rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div class="h-fit min-w-0 rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <h3 class="mb-5 flex items-center gap-2 border-b border-slate-100 pb-3 text-base font-semibold text-slate-900">
                 <span class="h-4 w-2 rounded bg-red-600"></span> Catat Transaksi
             </h3>
@@ -201,7 +201,7 @@ new class extends Component
         </div>
 
         {{-- Datatable --}}
-        <div class="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div class="min-w-0 rounded-lg border border-slate-200 bg-white shadow-sm">
             <div class="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between sm:p-5">
                 <div class="inline-flex w-fit rounded-md border border-slate-200 bg-slate-50 p-1 text-sm font-semibold">
                     @foreach (['all' => 'Semua', 'income' => 'Masuk', 'expense' => 'Keluar'] as $key => $label)
