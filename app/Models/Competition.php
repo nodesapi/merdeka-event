@@ -13,9 +13,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'event_id',
     'name',
     'slug',
+    'type',
     'target_participants',
     'min_age',
     'max_age',
+    'min_team_members',
+    'max_team_size',
     'total_rounds',
     'description',
     'status',
@@ -37,6 +40,16 @@ class Competition extends Model
     public function participants(): HasMany
     {
         return $this->hasMany(CompetitionParticipant::class);
+    }
+
+    public function teams(): HasMany
+    {
+        return $this->hasMany(CompetitionTeam::class);
+    }
+
+    public function isGroup(): bool
+    {
+        return $this->type === 'group';
     }
 
     /**
@@ -61,6 +74,22 @@ class Competition extends Model
     }
 
     /**
+     * Apakah jumlah anggota tertentu memenuhi ukuran tim yang disyaratkan.
+     */
+    public function isTeamSizeEligible(int $memberCount): bool
+    {
+        if ($this->min_team_members !== null && $memberCount < $this->min_team_members) {
+            return false;
+        }
+
+        if ($this->max_team_size !== null && $memberCount > $this->max_team_size) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * Label batas umur untuk ditampilkan (mis. "Khusus 1-6 tahun").
      */
     public function getAgeLimitLabelAttribute(): ?string
@@ -78,5 +107,25 @@ class Competition extends Model
         }
 
         return "Maksimal {$this->max_age} tahun";
+    }
+
+    /**
+     * Label ukuran tim untuk ditampilkan (mis. "3–7 anggota per tim").
+     */
+    public function getTeamSizeLabelAttribute(): ?string
+    {
+        if ($this->min_team_members === null && $this->max_team_size === null) {
+            return null;
+        }
+
+        if ($this->min_team_members !== null && $this->max_team_size !== null) {
+            return "{$this->min_team_members}–{$this->max_team_size} anggota per tim";
+        }
+
+        if ($this->min_team_members !== null) {
+            return "Minimal {$this->min_team_members} anggota per tim";
+        }
+
+        return "Maksimal {$this->max_team_size} anggota per tim";
     }
 }

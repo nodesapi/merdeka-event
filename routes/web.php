@@ -29,6 +29,8 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/daftar-lomba', 'lombaForm')->name('public.lomba-register');
     Route::get('/daftar-lomba/cari', 'lombaLookup')->name('public.lomba-register.lookup');
     Route::post('/daftar-lomba', 'storeLombaForm')->name('public.lomba-register.store');
+    Route::get('/daftar-lomba-grup/cari', 'lombaTeamLookup')->name('public.lomba-register.team-lookup');
+    Route::post('/daftar-lomba-grup', 'storeLombaTeamForm')->name('public.lomba-register.team-store');
     Route::get('/syarat-ketentuan', 'terms')->name('public.terms');
     Route::get('/galeri', 'galeri')->name('public.galeri');
     Route::get('/galeri/thumb/{filename}', 'galeriThumbnail')->name('public.galeri.thumb');

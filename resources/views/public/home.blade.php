@@ -314,6 +314,39 @@
         </div>
     </section>
 
+    <section class="mt-10">
+        <div class="flex flex-col items-center gap-2 text-center md:flex-row md:items-end md:justify-between md:gap-3 md:text-left">
+            <div class="flex items-center gap-3">
+                <span class="hidden h-7 w-1.5 rounded-full bg-red-600 md:block"></span>
+                <div>
+                    <h2 class="text-xl font-black tracking-tight text-stone-900">Peserta Bazaar</h2>
+                    <p class="text-sm text-stone-500">Warga yang sudah buka lapak di acara ini.</p>
+                </div>
+            </div>
+            <a href="{{ route('public.bazaar-form') }}" class="group inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-red-700 hover:underline">Lihat semua <x-icon name="arrow-right" class="h-4 w-4 transition group-hover:translate-x-0.5" /></a>
+        </div>
+
+        <div class="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @forelse ($bazaarSubmissions as $submission)
+                <div class="merdeka-card group relative flex flex-col overflow-hidden p-5 pt-6">
+                    <span class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-red-600 via-red-500 to-amber-400"></span>
+                    <div class="flex items-center gap-3">
+                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-700 text-white shadow-md shadow-red-600/20"><x-icon name="cash" class="h-6 w-6" /></span>
+                        <div class="min-w-0">
+                            <h3 class="truncate text-base font-black text-stone-900">{{ $submission->name }}</h3>
+                            @if ($submission->resident_block)
+                                <p class="truncate text-xs text-stone-500">Blok {{ $submission->resident_block }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    <span class="mt-3.5 inline-flex w-fit items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700">{{ $submission->jenis_jualan }}</span>
+                </div>
+            @empty
+                <p class="text-sm text-stone-500">Belum ada warga yang daftar bazaar.</p>
+            @endforelse
+        </div>
+    </section>
+
     @if ($winners->isNotEmpty())
         @php
             $rankStyle = [

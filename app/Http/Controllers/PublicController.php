@@ -7,6 +7,7 @@ use App\Models\ContributionItem;
 use App\Models\CommitteeMember;
 use App\Models\Competition;
 use App\Models\CompetitionParticipant;
+use App\Models\CompetitionTeam;
 use App\Models\Event;
 use App\Models\FamilyMember;
 use App\Models\FamilySubmission;
@@ -73,6 +74,10 @@ class PublicController extends Controller
             ? $event->goodyBagItems()->orderBy('sort_order')->orderBy('name')->get()
             : collect();
 
+        $bazaarSubmissions = $event
+            ? $event->bazaarSubmissions()->latest()->take(6)->get()
+            : collect();
+
         return view('public.home', [
             'event' => $event,
             'committeeCount' => $event ? $event->committeeMembers()->where('is_active', true)->count() : 0,
@@ -83,6 +88,8 @@ class PublicController extends Controller
             'balance' => $totalIncome - $totalExpense,
             'schedules' => $schedules,
             'goodyBagItems' => $goodyBagItems,
+            'bazaarSubmissions' => $bazaarSubmissions,
+            'bazaarSubmissionsCount' => $event ? $event->bazaarSubmissions()->count() : 0,
         ]);
     }
 
@@ -133,6 +140,22 @@ class PublicController extends Controller
 
     public function competitionShow(Competition $competition): View
     {
+        if ($competition->isGroup()) {
+            $competition->load(['event', 'teams' => function ($query) {
+                $query->with(['members', 'familySubmission:id,resident_block'])
+                    ->orderByDesc('round')
+                    ->orderBy('rank')
+                    ->orderBy('created_at');
+            }]);
+
+            return view('public.competition-show', [
+                'event' => $competition->event,
+                'competition' => $competition,
+                'teams' => $competition->teams,
+                'winnerTeams' => $competition->teams->whereNotNull('rank')->sortBy('rank')->values(),
+            ]);
+        }
+
         $competition->load(['event', 'participants' => function ($query) {
             $query->orderByDesc('round')->orderBy('rank')->orderBy('name');
         }]);
@@ -224,8 +247,13 @@ class PublicController extends Controller
 
     public function bazaarForm(): View
     {
+        $event = $this->activeEvent();
+
         return view('public.bazaar-form', [
-            'event' => $this->activeEvent(),
+            'event' => $event,
+            'bazaarSubmissions' => $event
+                ? $event->bazaarSubmissions()->orderBy('name')->get()
+                : collect(),
         ]);
     }
 
@@ -703,6 +731,8 @@ class PublicController extends Controller
         return view('public.lomba-register', [
             'event' => $event,
             'competitions' => $competitions,
+            'hasIndividualCompetitions' => $competitions->where('type', 'individual')->isNotEmpty(),
+            'hasGroupCompetitions' => $competitions->where('type', 'group')->isNotEmpty(),
         ]);
     }
 
@@ -743,6 +773,7 @@ class PublicController extends Controller
 
         $competitions = $event->competitions()
             ->where('status', 'published')
+            ->where('type', 'individual')
             ->orderBy('name')
             ->get()
             ->map(function (Competition $competition) use ($member, $registeredIds) {
@@ -812,6 +843,7 @@ class PublicController extends Controller
 
         $competitions = $event->competitions()
             ->where('status', 'published')
+            ->where('type', 'individual')
             ->whereIn('id', $validated['competition_ids'])
             ->get();
 
@@ -861,5 +893,213 @@ class PublicController extends Controller
         return redirect()
             ->route('public.lomba-register')
             ->with('success_message', $message);
+    }
+
+    /**
+     * Cari keluarga (lomba grup) lewat No Daftar salah satu anggotanya.
+     */
+    public function lombaTeamLookup(Request $request)
+    {
+        $event = $this->activeEvent();
+
+        if (! $event) {
+            return response()->json(['found' => false, 'message' => 'Belum ada acara aktif.'], 404);
+        }
+
+        if (! $event->isLombaRegistrationOpen()) {
+            return response()->json(['found' => false, 'message' => 'Pendaftaran lomba belum dibuka.'], 403);
+        }
+
+        $number = trim((string) $request->query('no', ''));
+
+        if ($number === '') {
+            return response()->json(['found' => false, 'message' => 'Masukkan No Daftar.'], 422);
+        }
+
+        $member = FamilyMember::where('event_id', $event->id)
+            ->where('registration_number', $number)
+            ->whereHas('familySubmission', fn ($q) => $q->where('status', '!=', 'rejected'))
+            ->first();
+
+        if (! $member || ! $member->familySubmission) {
+            return response()->json([
+                'found' => false,
+                'message' => 'No Daftar tidak ditemukan. Pastikan sudah mengisi Form Warga dan angkanya benar.',
+            ], 404);
+        }
+
+        $familySubmission = $member->familySubmission;
+
+        $members = $familySubmission->familyMembers()
+            ->orderBy('name')
+            ->get()
+            ->map(fn (FamilyMember $m) => [
+                'id' => $m->id,
+                'name' => $m->name,
+                'age' => $m->age !== null ? (int) $m->age : null,
+            ])
+            ->values();
+
+        $competitions = $event->competitions()
+            ->where('status', 'published')
+            ->where('type', 'group')
+            ->orderBy('name')
+            ->get()
+            ->map(function (Competition $competition) use ($familySubmission, $members) {
+                $already = CompetitionTeam::where('competition_id', $competition->id)
+                    ->where('family_submission_id', $familySubmission->id)
+                    ->exists();
+
+                $eligibleMemberIds = $members
+                    ->filter(fn ($m) => $competition->isAgeEligible($m['age']))
+                    ->pluck('id')
+                    ->values();
+
+                return [
+                    'id' => $competition->id,
+                    'name' => $competition->name,
+                    'age_limit' => $competition->age_limit_label,
+                    'team_size_label' => $competition->team_size_label,
+                    'min_team_members' => $competition->min_team_members,
+                    'max_team_size' => $competition->max_team_size,
+                    'already' => $already,
+                    'eligible_member_ids' => $eligibleMemberIds,
+                ];
+            })
+            ->values();
+
+        return response()->json([
+            'found' => true,
+            'family' => [
+                'head_of_family_name' => $familySubmission->head_of_family_name,
+                'resident_block' => $familySubmission->resident_block,
+            ],
+            'members' => $members,
+            'competitions' => $competitions,
+        ]);
+    }
+
+    /**
+     * Simpan pendaftaran tim (lomba grup) untuk satu keluarga.
+     */
+    public function storeLombaTeamForm(Request $request): RedirectResponse
+    {
+        $event = $this->activeEvent();
+
+        if (! $event) {
+            return back()->withErrors(['registration_number' => 'Belum ada acara aktif.'])->withInput();
+        }
+
+        if (! $event->isLombaRegistrationOpen()) {
+            return back()->withErrors(['registration_number' => 'Pendaftaran lomba belum dibuka.'])->withInput();
+        }
+
+        $validated = $request->validate([
+            'registration_number' => ['required', 'string', 'max:20'],
+            'competition_id' => ['required', 'uuid'],
+            'team_name' => ['nullable', 'string', 'max:255'],
+            'member_ids' => ['required', 'array', 'min:1'],
+            'member_ids.*' => ['uuid'],
+        ], [
+            'member_ids.required' => 'Pilih minimal satu anggota tim.',
+        ]);
+
+        $member = FamilyMember::where('event_id', $event->id)
+            ->where('registration_number', $validated['registration_number'])
+            ->first();
+
+        if (! $member || ! $member->familySubmission) {
+            return back()
+                ->withErrors(['registration_number' => 'No Daftar tidak ditemukan untuk acara ini.'])
+                ->withInput();
+        }
+
+        $familySubmission = $member->familySubmission;
+
+        $competition = $event->competitions()
+            ->where('status', 'published')
+            ->where('type', 'group')
+            ->where('id', $validated['competition_id'])
+            ->first();
+
+        if (! $competition) {
+            return back()
+                ->withErrors(['competition_id' => 'Lomba grup tidak ditemukan atau belum dipublikasikan.'])
+                ->withInput();
+        }
+
+        $alreadyTeam = CompetitionTeam::where('competition_id', $competition->id)
+            ->where('family_submission_id', $familySubmission->id)
+            ->exists();
+
+        if ($alreadyTeam) {
+            return back()
+                ->withErrors(['competition_id' => 'Keluarga ini sudah mendaftarkan tim untuk lomba ini.'])
+                ->withInput();
+        }
+
+        $selectedMembers = $familySubmission->familyMembers()
+            ->whereIn('id', $validated['member_ids'])
+            ->get();
+
+        if ($selectedMembers->count() !== count($validated['member_ids'])) {
+            return back()
+                ->withErrors(['member_ids' => 'Anggota yang dipilih tidak valid.'])
+                ->withInput();
+        }
+
+        if (! $competition->isTeamSizeEligible($selectedMembers->count())) {
+            return back()
+                ->withErrors(['member_ids' => 'Jumlah anggota tidak sesuai (' . $competition->team_size_label . ').'])
+                ->withInput();
+        }
+
+        foreach ($selectedMembers as $m) {
+            $age = $m->age !== null ? (int) $m->age : null;
+
+            if (! $competition->isAgeEligible($age)) {
+                return back()
+                    ->withErrors(['member_ids' => 'Umur ' . $m->name . ' tidak sesuai kategori lomba ini (' . $competition->age_limit_label . ').'])
+                    ->withInput();
+            }
+
+            $alreadyParticipant = CompetitionParticipant::where('competition_id', $competition->id)
+                ->where('family_member_id', $m->id)
+                ->exists();
+
+            if ($alreadyParticipant) {
+                return back()
+                    ->withErrors(['member_ids' => $m->name . ' sudah terdaftar di lomba ini.'])
+                    ->withInput();
+            }
+        }
+
+        $teamName = $validated['team_name'] ?: 'Tim Keluarga ' . $familySubmission->head_of_family_name;
+
+        DB::transaction(function () use ($competition, $familySubmission, $selectedMembers, $teamName) {
+            $team = CompetitionTeam::create([
+                'competition_id' => $competition->id,
+                'family_submission_id' => $familySubmission->id,
+                'team_name' => $teamName,
+                'round' => 1,
+                'status' => 'active',
+            ]);
+
+            foreach ($selectedMembers as $m) {
+                CompetitionParticipant::create([
+                    'competition_id' => $competition->id,
+                    'competition_team_id' => $team->id,
+                    'family_member_id' => $m->id,
+                    'name' => $m->name,
+                    'age' => $m->age !== null ? (int) $m->age : null,
+                    'round' => 1,
+                    'status' => 'active',
+                ]);
+            }
+        });
+
+        return redirect()
+            ->route('public.lomba-register')
+            ->with('success_message', 'Tim "' . $teamName . '" berhasil didaftarkan ke ' . $competition->name . ' dengan ' . $selectedMembers->count() . ' anggota.');
     }
 }

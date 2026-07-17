@@ -10,9 +10,12 @@ new class extends Component
     public ?string $editingId = null;
 
     public $name = '';
+    public $type = 'individual';
     public $target_participants = '';
     public $min_age = '';
     public $max_age = '';
+    public $min_team_members = '';
+    public $max_team_size = '';
     public $total_rounds = 1;
     public $status = 'published';
     public $description = '';
@@ -23,9 +26,12 @@ new class extends Component
     {
         return [
             'name' => 'required|string|max:255',
+            'type' => 'required|in:individual,group',
             'target_participants' => 'nullable|string|max:255',
             'min_age' => 'nullable|integer|min:0|max:120',
             'max_age' => 'nullable|integer|min:0|max:120',
+            'min_team_members' => 'nullable|integer|min:1|max:50',
+            'max_team_size' => 'nullable|integer|min:1|max:50',
             'total_rounds' => 'required|integer|min:1|max:20',
             'status' => 'required|in:draft,published,closed',
             'description' => 'nullable|string',
@@ -44,9 +50,19 @@ new class extends Component
 
         $data['min_age'] = ($data['min_age'] ?? '') === '' ? null : (int) $data['min_age'];
         $data['max_age'] = ($data['max_age'] ?? '') === '' ? null : (int) $data['max_age'];
+        $data['min_team_members'] = ($data['min_team_members'] ?? '') === '' ? null : (int) $data['min_team_members'];
+        $data['max_team_size'] = ($data['max_team_size'] ?? '') === '' ? null : (int) $data['max_team_size'];
 
         if ($data['min_age'] !== null && $data['max_age'] !== null && $data['max_age'] < $data['min_age']) {
             $this->addError('max_age', 'Umur maksimal tidak boleh lebih kecil dari umur minimal.');
+            return;
+        }
+
+        if ($data['type'] !== 'group') {
+            $data['min_team_members'] = null;
+            $data['max_team_size'] = null;
+        } elseif ($data['min_team_members'] !== null && $data['max_team_size'] !== null && $data['max_team_size'] < $data['min_team_members']) {
+            $this->addError('max_team_size', 'Jumlah anggota maksimal tidak boleh lebih kecil dari minimal.');
             return;
         }
 
@@ -86,9 +102,12 @@ new class extends Component
         $competition = Competition::findOrFail($id);
         $this->editingId = $competition->id;
         $this->name = $competition->name;
+        $this->type = $competition->type;
         $this->target_participants = $competition->target_participants;
         $this->min_age = $competition->min_age;
         $this->max_age = $competition->max_age;
+        $this->min_team_members = $competition->min_team_members;
+        $this->max_team_size = $competition->max_team_size;
         $this->total_rounds = $competition->total_rounds;
         $this->status = $competition->status;
         $this->description = $competition->description;
@@ -105,7 +124,8 @@ new class extends Component
 
     public function resetForm()
     {
-        $this->reset(['editingId', 'name', 'target_participants', 'min_age', 'max_age', 'description']);
+        $this->reset(['editingId', 'name', 'target_participants', 'min_age', 'max_age', 'min_team_members', 'max_team_size', 'description']);
+        $this->type = 'individual';
         $this->total_rounds = 1;
         $this->status = 'published';
     }
@@ -150,6 +170,14 @@ new class extends Component
                     @error('name') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Jenis Lomba</label>
+                    <select wire:model.live="type" data-custom-select class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                        <option value="individual">Individu</option>
+                        <option value="group">Grup (per tim keluarga)</option>
+                    </select>
+                    @error('type') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Target Peserta</label>
                     <input type="text" wire:model="target_participants" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: Anak-anak dan Remaja">
                     @error('target_participants') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
@@ -166,7 +194,28 @@ new class extends Component
                         @error('max_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <p class="-mt-1 text-[11px] text-slate-400">Kosongkan bila lomba terbuka untuk semua umur. Contoh lomba balita: min 1, max 6.</p>
+                <p class="-mt-1 text-[11px] text-slate-400">
+                    @if ($type === 'group')
+                        Batas umur tetap berlaku untuk tiap anggota tim. Kosongkan bila bebas umur.
+                    @else
+                        Kosongkan bila lomba terbuka untuk semua umur. Contoh lomba balita: min 1, max 6.
+                    @endif
+                </p>
+                @if ($type === 'group')
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota Tim Minimal</label>
+                            <input type="number" wire:model="min_team_members" min="1" max="50" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                            @error('min_team_members') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota Tim Maksimal</label>
+                            <input type="number" wire:model="max_team_size" min="1" max="50" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                            @error('max_team_size') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+                    <p class="-mt-1 text-[11px] text-slate-400">Jumlah anggota per tim keluarga yang mendaftar lomba ini.</p>
+                @endif
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Jumlah Babak</label>
@@ -212,11 +261,19 @@ new class extends Component
                             <div class="flex items-center gap-2">
                                 <p class="font-medium text-slate-900 truncate">{{ $competition->name }}</p>
                                 <span class="text-xs px-2 py-0.5 rounded {{ $competition->status === 'published' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500' }}">{{ $competition->status }}</span>
+                                @if ($competition->type === 'group')
+                                    <span class="text-xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">Grup</span>
+                                @endif
                             </div>
                             <p class="text-xs text-slate-500">{{ $competition->target_participants }} · {{ $competition->total_rounds }} babak · {{ $competition->participants_count }} peserta</p>
-                            @if ($competition->age_limit_label)
-                                <p class="mt-0.5 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{{ $competition->age_limit_label }}</p>
-                            @endif
+                            <div class="mt-0.5 flex flex-wrap gap-1">
+                                @if ($competition->age_limit_label)
+                                    <p class="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{{ $competition->age_limit_label }}</p>
+                                @endif
+                                @if ($competition->team_size_label)
+                                    <p class="inline-flex rounded bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700">{{ $competition->team_size_label }}</p>
+                                @endif
+                            </div>
                         </div>
                         <div class="flex shrink-0 gap-2">
                             <a href="{{ route('admin.participants', $competition->slug) }}" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">Peserta &amp; Juara</a>

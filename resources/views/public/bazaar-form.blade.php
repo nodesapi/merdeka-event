@@ -23,6 +23,36 @@
             </div>
         @endif
 
+        <section class="mt-6 w-full min-w-0 max-w-full overflow-x-clip">
+            <div class="flex items-center gap-3">
+                <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
+                <div>
+                    <h2 class="text-lg font-black text-stone-900">Peserta Bazaar Terdaftar</h2>
+                    <p class="text-sm text-stone-500">{{ $bazaarSubmissions->count() }} lapak sudah terdaftar.</p>
+                </div>
+            </div>
+
+            <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                @forelse ($bazaarSubmissions as $submission)
+                    <div class="merdeka-card group relative flex flex-col overflow-hidden p-5 pt-6">
+                        <span class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-red-600 via-red-500 to-amber-400"></span>
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500 to-red-700 text-white shadow-md shadow-red-600/20"><x-icon name="cash" class="h-6 w-6" /></span>
+                            <div class="min-w-0">
+                                <h3 class="truncate text-base font-black text-stone-900">{{ $submission->name }}</h3>
+                                @if ($submission->resident_block)
+                                    <p class="truncate text-xs text-stone-500">Blok {{ $submission->resident_block }}</p>
+                                @endif
+                            </div>
+                        </div>
+                        <span class="mt-3.5 inline-flex w-fit items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold text-red-700">{{ $submission->jenis_jualan }}</span>
+                    </div>
+                @empty
+                    <p class="text-sm text-stone-500">Belum ada warga yang daftar bazaar. Jadilah yang pertama!</p>
+                @endforelse
+            </div>
+        </section>
+
         <form method="POST" action="{{ route('public.bazaar-form.store') }}" class="mt-6 w-full min-w-0 max-w-full space-y-6 overflow-x-clip text-left">
             @csrf
 

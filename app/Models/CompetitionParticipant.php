@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 #[Fillable([
     'competition_id',
+    'competition_team_id',
     'family_member_id',
     'name',
     'resident_block',
@@ -28,6 +29,11 @@ class CompetitionParticipant extends Model
     public function competition(): BelongsTo
     {
         return $this->belongsTo(Competition::class);
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(CompetitionTeam::class, 'competition_team_id');
     }
 
     public function familyMember(): BelongsTo
