@@ -135,6 +135,7 @@
         <div class="border-t border-stone-200/70">
             <div class="mx-auto max-w-6xl px-5 py-4 text-center text-xs text-stone-400 lg:px-8">
                 <span class="inline-flex items-center gap-1.5">&copy; {{ date('Y') }} {{ $siteName }}. Dikelola bersama untuk warga. <x-icon name="flag" class="h-3.5 w-3.5 text-red-600" /></span>
+                <span class="mt-1 block">Dibuat oleh <a href="https://github.com/nodesapi" target="_blank" rel="noopener noreferrer" class="font-semibold text-stone-500 hover:text-red-600 hover:underline">Wahyu Suhandi</a></span>
             </div>
         </div>
     </footer>
