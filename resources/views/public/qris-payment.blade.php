@@ -150,12 +150,15 @@
                 const cd = card.querySelector('[data-qris-countdown]');
                 if (expiresAt && cd) {
                     const target = new Date(expiresAt).getTime();
+                    const pad = (n) => String(n).padStart(2, '0');
                     const tick = () => {
                         const diff = target - Date.now();
                         if (diff <= 0) { cd.textContent = '(kedaluwarsa)'; return; }
-                        const m = Math.floor(diff / 60000);
-                        const s = Math.floor((diff % 60000) / 1000);
-                        cd.textContent = '(' + m + 'm ' + String(s).padStart(2, '0') + 's)';
+                        const totalSeconds = Math.floor(diff / 1000);
+                        const h = Math.floor(totalSeconds / 3600);
+                        const m = Math.floor((totalSeconds % 3600) / 60);
+                        const s = totalSeconds % 60;
+                        cd.textContent = '(' + pad(h) + ':' + pad(m) + ':' + pad(s) + ')';
                         setTimeout(tick, 1000);
                     };
                     tick();

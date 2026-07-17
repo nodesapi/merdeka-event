@@ -58,7 +58,7 @@ class PayHook
         string $externalId,
         ?string $phone = null,
         string $description = 'Iuran warga',
-        int $expiresInMinutes = 60
+        int $expiresInMinutes = 1440
     ): ?array {
         if (! $this->enabled()) {
             return null;

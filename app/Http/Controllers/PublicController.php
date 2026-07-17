@@ -609,7 +609,7 @@ class PublicController extends Controller
                     externalId: $submission->reference_code,
                     phone: $submission->phone_number,
                     description: 'Iuran warga ' . $submission->reference_code,
-                    expiresInMinutes: 60,
+                    expiresInMinutes: 1440,
                 );
 
                 if ($invoice) {
@@ -667,7 +667,7 @@ class PublicController extends Controller
                     externalId: $submission->reference_code . '-' . now()->format('YmdHis'),
                     phone: $submission->phone_number,
                     description: 'Iuran warga ' . $submission->reference_code,
-                    expiresInMinutes: 60,
+                    expiresInMinutes: 1440,
                 );
 
                 if ($invoice) {
