@@ -79,7 +79,7 @@
                             <x-icon name="medal" class="mx-auto h-9 w-9 {{ $rankColor[$team->rank] ?? 'text-stone-400' }}" />
                             <p class="mt-1 text-xs font-bold uppercase tracking-wide">{{ $rankLabels[$team->rank] ?? ('Peringkat ' . $team->rank) }}</p>
                             <p class="mt-1 text-base font-extrabold text-stone-900">{{ $team->display_name }}</p>
-                            <p class="text-sm text-stone-500">{{ $team->familySubmission?->resident_block ?: '-' }}</p>
+                            <p class="text-sm text-stone-500">{{ $team->members->pluck('name')->join(', ') }}</p>
                         </article>
                     @endforeach
                 </div>
@@ -105,7 +105,7 @@
                             @endif
                         </div>
                         <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            <span class="text-xs text-stone-400">{{ $team->familySubmission?->resident_block ?: '-' }}</span>
+                            <span class="text-xs text-stone-400">{{ $team->members->count() }} anggota</span>
                             <span class="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-bold text-red-700">Babak {{ $team->round }}{{ $team->round == $competition->total_rounds ? ' · Final' : '' }}</span>
                         </div>
                         <p class="mt-2 text-xs text-stone-500">{{ $team->members->pluck('name')->join(', ') }}</p>

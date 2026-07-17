@@ -11,7 +11,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
     'competition_id',
-    'family_submission_id',
     'team_name',
     'round',
     'status',
@@ -27,11 +26,6 @@ class CompetitionTeam extends Model
         return $this->belongsTo(Competition::class);
     }
 
-    public function familySubmission(): BelongsTo
-    {
-        return $this->belongsTo(FamilySubmission::class);
-    }
-
     public function members(): HasMany
     {
         return $this->hasMany(CompetitionParticipant::class);
@@ -39,6 +33,6 @@ class CompetitionTeam extends Model
 
     public function getDisplayNameAttribute(): string
     {
-        return $this->team_name ?: 'Tim Keluarga ' . optional($this->familySubmission)->head_of_family_name;
+        return $this->team_name ?: 'Tim #' . substr($this->id, 0, 8);
     }
 }

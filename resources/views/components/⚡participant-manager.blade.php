@@ -5,7 +5,6 @@ use App\Models\Competition;
 use App\Models\CompetitionParticipant;
 use App\Models\CompetitionTeam;
 use App\Models\FamilyMember;
-use Illuminate\Support\Facades\DB;
 
 new class extends Component
 {
@@ -27,11 +26,14 @@ new class extends Component
     public $phone_number = '';
     public $age = '';
 
-    // Tambah tim (lomba grup): cari keluarga via No. Daftar salah satu anggota
-    public $team_registration_number = '';
-    public $team_name = '';
-    public $foundFamily = null;
-    public $selectedMemberIds = [];
+    // Tambah tim (lomba grup): buat tim, lalu tambah anggota lintas keluarga
+    public $new_team_name = '';
+    public $selectedTeamId = '';
+    public $team_member_registration_number = '';
+    public $team_member_name = '';
+    public $team_member_resident_block = '';
+    public $team_member_phone_number = '';
+    public $team_member_age = '';
 
     public $success_message = '';
 
@@ -128,17 +130,47 @@ new class extends Component
     }
 
     /**
-     * Cari keluarga (lomba grup) lewat No. Daftar salah satu anggotanya.
+     * Buat tim kosong untuk lomba grup ini. Anggota ditambah belakangan satu per satu.
      */
-    public function lookupTeamFamily()
+    public function createTeam()
     {
         $this->validate([
-            'team_registration_number' => 'required|string|max:20',
+            'new_team_name' => 'nullable|string|max:255',
+        ]);
+
+        $team = CompetitionTeam::create([
+            'competition_id' => $this->competitionId,
+            'team_name' => $this->new_team_name ?: null,
+            'round' => 1,
+            'status' => 'active',
+        ]);
+
+        $this->selectedTeamId = $team->id;
+        $this->success_message = $team->display_name . ' berhasil dibuat. Sekarang tambahkan anggotanya.';
+        $this->reset('new_team_name');
+    }
+
+    protected function selectedTeam(): CompetitionTeam
+    {
+        return CompetitionTeam::where('competition_id', $this->competitionId)->findOrFail($this->selectedTeamId);
+    }
+
+    /**
+     * Tambah anggota tim lewat No. Daftar warga (boleh dari keluarga mana saja).
+     */
+    public function addTeamMemberByRegistration()
+    {
+        $this->validate([
+            'selectedTeamId' => 'required',
+            'team_member_registration_number' => 'required|string|max:20',
+        ], [
+            'selectedTeamId.required' => 'Pilih atau buat tim terlebih dahulu.',
         ]);
 
         $competition = Competition::findOrFail($this->competitionId);
+        $team = $this->selectedTeam();
 
-        $input = trim($this->team_registration_number);
+        $input = trim($this->team_member_registration_number);
         $candidates = array_values(array_unique(array_filter([
             $input,
             ctype_digit($input) ? str_pad($input, 4, '0', STR_PAD_LEFT) : null,
@@ -148,118 +180,91 @@ new class extends Component
             ->whereIn('registration_number', $candidates)
             ->first();
 
-        if (! $member || ! $member->familySubmission) {
-            $this->addError('team_registration_number', 'No. Daftar tidak ditemukan untuk acara ini.');
+        if (! $member) {
+            $this->addError('team_member_registration_number', 'No. Daftar tidak ditemukan untuk acara ini.');
             return;
         }
 
-        $familySubmission = $member->familySubmission;
-
-        $alreadyTeam = CompetitionTeam::where('competition_id', $this->competitionId)
-            ->where('family_submission_id', $familySubmission->id)
+        $already = CompetitionParticipant::where('competition_id', $this->competitionId)
+            ->where('family_member_id', $member->id)
             ->exists();
 
-        if ($alreadyTeam) {
-            $this->addError('team_registration_number', 'Keluarga ini sudah punya tim di lomba ini.');
+        if ($already) {
+            $this->addError('team_member_registration_number', $member->name . ' sudah terdaftar di lomba ini.');
             return;
         }
 
-        $members = $familySubmission->familyMembers()->orderBy('name')->get()->map(function ($m) use ($competition) {
-            $age = $m->age !== null ? (int) $m->age : null;
+        $age = $member->age !== null ? (int) $member->age : null;
 
-            return [
-                'id' => $m->id,
-                'name' => $m->name,
-                'age' => $age,
-                'registration_number' => $m->registration_number,
-                'eligible' => $competition->isAgeEligible($age),
-                'already' => CompetitionParticipant::where('competition_id', $this->competitionId)
-                    ->where('family_member_id', $m->id)
-                    ->exists(),
-            ];
-        })->values()->all();
+        if (! $competition->isAgeEligible($age)) {
+            $this->addError('team_member_registration_number', 'Umur ' . $member->name . ' tidak sesuai kategori lomba ini (' . $competition->age_limit_label . ').');
+            return;
+        }
 
-        $this->foundFamily = [
-            'family_submission_id' => $familySubmission->id,
-            'head_of_family_name' => $familySubmission->head_of_family_name,
-            'members' => $members,
-        ];
-        $this->selectedMemberIds = [];
-        $this->team_name = 'Tim Keluarga ' . $familySubmission->head_of_family_name;
+        if ($this->maxTeamSize !== null && $team->members()->count() >= $this->maxTeamSize) {
+            $this->addError('team_member_registration_number', $team->display_name . ' sudah mencapai maksimal ' . $this->maxTeamSize . ' anggota.');
+            return;
+        }
+
+        CompetitionParticipant::create([
+            'competition_id' => $this->competitionId,
+            'competition_team_id' => $team->id,
+            'family_member_id' => $member->id,
+            'name' => $member->name,
+            'resident_block' => optional($member->familySubmission)->resident_block,
+            'phone_number' => optional($member->familySubmission)->phone_number,
+            'age' => $age,
+            'round' => 1,
+            'status' => 'active',
+        ]);
+
+        $this->success_message = $member->name . ' berhasil ditambahkan ke ' . $team->display_name . '.';
+        $this->reset('team_member_registration_number');
     }
 
     /**
-     * Daftarkan tim (anggota terpilih) untuk lomba grup ini.
+     * Tambah anggota tim secara manual (tamu non-warga / tidak punya No. Daftar).
      */
-    public function createTeam()
+    public function addTeamMemberManual()
     {
-        if (! $this->foundFamily) {
-            $this->addError('team_registration_number', 'Cari keluarga terlebih dahulu.');
-            return;
-        }
+        $data = $this->validate([
+            'selectedTeamId' => 'required',
+            'team_member_name' => 'required|string|max:255',
+            'team_member_resident_block' => 'nullable|string|max:100',
+            'team_member_phone_number' => 'nullable|string|max:50',
+            'team_member_age' => 'nullable|integer|min:0|max:120',
+        ], [
+            'selectedTeamId.required' => 'Pilih atau buat tim terlebih dahulu.',
+        ]);
 
         $competition = Competition::findOrFail($this->competitionId);
+        $team = $this->selectedTeam();
 
-        $memberIds = collect($this->selectedMemberIds)->map(fn ($id) => (string) $id)->values()->all();
+        $age = $this->team_member_age === '' ? null : (int) $this->team_member_age;
 
-        if (empty($memberIds)) {
-            $this->addError('selectedMemberIds', 'Pilih minimal satu anggota tim.');
+        if (! $competition->isAgeEligible($age)) {
+            $this->addError('team_member_age', 'Umur tidak sesuai kategori lomba ini (' . $competition->age_limit_label . ').');
             return;
         }
 
-        if (! $competition->isTeamSizeEligible(count($memberIds))) {
-            $this->addError('selectedMemberIds', 'Jumlah anggota tidak sesuai (' . $competition->team_size_label . ').');
+        if ($this->maxTeamSize !== null && $team->members()->count() >= $this->maxTeamSize) {
+            $this->addError('team_member_name', $team->display_name . ' sudah mencapai maksimal ' . $this->maxTeamSize . ' anggota.');
             return;
         }
 
-        $selectedMembers = collect($this->foundFamily['members'])->whereIn('id', $memberIds)->values();
+        CompetitionParticipant::create([
+            'competition_id' => $this->competitionId,
+            'competition_team_id' => $team->id,
+            'name' => $data['team_member_name'],
+            'resident_block' => $data['team_member_resident_block'],
+            'phone_number' => $data['team_member_phone_number'],
+            'age' => $age,
+            'round' => 1,
+            'status' => 'active',
+        ]);
 
-        foreach ($selectedMembers as $m) {
-            if (! $m['eligible']) {
-                $this->addError('selectedMemberIds', 'Umur ' . $m['name'] . ' tidak sesuai kategori lomba ini (' . $competition->age_limit_label . ').');
-                return;
-            }
-            if ($m['already']) {
-                $this->addError('selectedMemberIds', $m['name'] . ' sudah terdaftar di lomba ini.');
-                return;
-            }
-        }
-
-        $alreadyTeam = CompetitionTeam::where('competition_id', $this->competitionId)
-            ->where('family_submission_id', $this->foundFamily['family_submission_id'])
-            ->exists();
-
-        if ($alreadyTeam) {
-            $this->addError('team_registration_number', 'Keluarga ini sudah punya tim di lomba ini.');
-            return;
-        }
-
-        $teamName = $this->team_name;
-
-        DB::transaction(function () use ($selectedMembers, $teamName) {
-            $team = CompetitionTeam::create([
-                'competition_id' => $this->competitionId,
-                'family_submission_id' => $this->foundFamily['family_submission_id'],
-                'team_name' => $teamName ?: null,
-                'round' => 1,
-                'status' => 'active',
-            ]);
-
-            foreach ($selectedMembers as $m) {
-                CompetitionParticipant::create([
-                    'competition_id' => $this->competitionId,
-                    'competition_team_id' => $team->id,
-                    'family_member_id' => $m['id'],
-                    'name' => $m['name'],
-                    'age' => $m['age'],
-                    'round' => 1,
-                    'status' => 'active',
-                ]);
-            }
-        });
-
-        $this->success_message = 'Tim "' . ($teamName ?: 'tanpa nama') . '" berhasil didaftarkan dengan ' . $selectedMembers->count() . ' anggota.';
-        $this->reset(['team_registration_number', 'team_name', 'foundFamily', 'selectedMemberIds']);
+        $this->success_message = $data['team_member_name'] . ' berhasil ditambahkan ke ' . $team->display_name . '.';
+        $this->reset(['team_member_name', 'team_member_resident_block', 'team_member_phone_number', 'team_member_age']);
     }
 
     protected function team(string $id): CompetitionTeam
@@ -406,7 +411,7 @@ new class extends Component
     {
         if ($this->isGroup) {
             $teams = CompetitionTeam::where('competition_id', $this->competitionId)
-                ->with(['members', 'familySubmission:id,head_of_family_name,resident_block'])
+                ->with('members')
                 ->orderByDesc('round')
                 ->orderBy('rank')
                 ->orderBy('created_at')
@@ -619,58 +624,78 @@ new class extends Component
         </div>
     @endforelse
     @else
-        <!-- Tambah tim (lomba grup) -->
+        <!-- Buat tim & tambah anggota (lomba grup) -->
         <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
             <h3 class="font-semibold text-base text-slate-900 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
                 <span class="w-2 h-4 bg-red-600 rounded"></span>
-                Tambah Tim
+                Buat Tim
             </h3>
             <p class="-mt-3 mb-4 text-xs text-slate-500">
-                Cari keluarga lewat <span class="font-semibold">No. Daftar</span> salah satu anggotanya, lalu pilih siapa saja yang ikut dalam tim.
+                Buat tim dulu (nama bebas), lalu tambahkan anggotanya satu per satu — anggota boleh dari keluarga/blok mana saja, tidak harus satu KK.
                 @if ($teamSizeLabel)
                     Jumlah anggota tim: <span class="font-semibold">{{ $teamSizeLabel }}</span>.
                 @endif
             </p>
 
-            <form wire:submit.prevent="lookupTeamFamily" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Cari Keluarga via No. Daftar</label>
+            <form wire:submit.prevent="createTeam" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Tim</label>
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <div class="flex-1">
-                        <input type="text" wire:model="team_registration_number" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: 0001">
-                        @error('team_registration_number') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                        <input type="text" wire:model="new_team_name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: Tim Blok A">
+                        @error('new_team_name') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
-                    <button type="submit" class="shrink-0 px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm">Cari Keluarga</button>
+                    <button type="submit" class="shrink-0 px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm">Buat Tim</button>
                 </div>
             </form>
 
-            @if ($foundFamily)
-                <form wire:submit.prevent="createTeam" class="mt-4 rounded-lg border border-slate-200 p-4">
-                    <div class="mb-3">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Tim</label>
-                        <input type="text" wire:model="team_name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Nama tim">
-                    </div>
-
-                    <p class="mb-2 text-xs font-semibold text-slate-700">Pilih Anggota Tim</p>
-                    <div class="space-y-1.5">
-                        @foreach ($foundFamily['members'] as $m)
-                            <label class="flex items-center gap-2.5 rounded-md border border-slate-200 px-3 py-2 text-sm {{ (! $m['eligible'] || $m['already']) ? 'opacity-50' : 'hover:bg-slate-50' }}">
-                                <input type="checkbox" wire:model="selectedMemberIds" value="{{ $m['id'] }}" {{ (! $m['eligible'] || $m['already']) ? 'disabled' : '' }} class="rounded border-slate-300 text-red-600 focus:ring-red-500">
-                                <span class="flex-1">
-                                    <span class="font-medium text-slate-900">{{ $m['name'] }}</span>
-                                    <span class="text-slate-400"> · {{ $m['age'] !== null ? $m['age'] . ' th' : 'umur -' }}</span>
-                                </span>
-                                @if ($m['already'])
-                                    <span class="text-[11px] font-semibold text-slate-400">Sudah terdaftar</span>
-                                @elseif (! $m['eligible'])
-                                    <span class="text-[11px] font-semibold text-red-500">Umur tidak sesuai</span>
-                                @endif
-                            </label>
+            @if ($teams->isNotEmpty())
+                <div class="mt-4 rounded-lg border border-slate-200 p-4">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tambah Anggota ke Tim</label>
+                    <select wire:model="selectedTeamId" data-custom-select class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                        <option value="">— Pilih tim —</option>
+                        @foreach ($teams as $t)
+                            <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->members->count() }} anggota)</option>
                         @endforeach
-                    </div>
-                    @error('selectedMemberIds') <span class="mt-1.5 block text-xs text-red-600">{{ $message }}</span> @enderror
+                    </select>
+                    @error('selectedTeamId') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
 
-                    <button type="submit" class="mt-4 px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm">Daftarkan Tim</button>
-                </form>
+                    {{-- Tambah cepat via No. Daftar (ambil dari data warga, lintas keluarga) --}}
+                    <form wire:submit.prevent="addTeamMemberByRegistration" class="mt-3 flex flex-col gap-2 sm:flex-row sm:items-start">
+                        <div class="flex-1">
+                            <input type="text" wire:model="team_member_registration_number" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="No. Daftar, contoh: 0001">
+                            @error('team_member_registration_number') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                        </div>
+                        <button type="submit" class="shrink-0 px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm">Cari &amp; Tambahkan</button>
+                    </form>
+
+                    <div class="my-4 flex items-center gap-3 text-[11px] uppercase tracking-wide text-slate-400">
+                        <span class="h-px flex-1 bg-slate-200"></span>
+                        atau input manual (tamu non-warga)
+                        <span class="h-px flex-1 bg-slate-200"></span>
+                    </div>
+
+                    <form wire:submit.prevent="addTeamMemberManual" class="grid grid-cols-1 md:grid-cols-[1.5fr_1fr_0.7fr_1fr_auto] gap-4 md:items-end">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Anggota</label>
+                            <input type="text" wire:model="team_member_name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Nama anggota">
+                            @error('team_member_name') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Blok / Asal</label>
+                            <input type="text" wire:model="team_member_resident_block" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="A/12">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Umur</label>
+                            <input type="number" wire:model="team_member_age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="10">
+                            @error('team_member_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">No. HP (opsional)</label>
+                            <input type="text" wire:model="team_member_phone_number" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="0812xxxx">
+                        </div>
+                        <button type="submit" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm">Tambah</button>
+                    </form>
+                </div>
             @endif
         </div>
 
@@ -690,10 +715,7 @@ new class extends Component
                                 <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 font-semibold">Lolos</span>
                             @endif
                         </div>
-                        <p class="mt-1 text-xs text-slate-500">
-                            {{ $team->familySubmission?->resident_block ? 'Blok ' . $team->familySubmission->resident_block . ' · ' : '' }}
-                            {{ $team->members->pluck('name')->join(', ') }}
-                        </p>
+                        <p class="mt-1 text-xs text-slate-500">{{ $team->members->count() }} anggota</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2">
                         <div class="inline-flex items-center gap-1.5">
@@ -726,6 +748,19 @@ new class extends Component
                         <span class="h-6 w-px bg-slate-200"></span>
 
                         <button wire:click="deleteTeam('{{ $team->id }}')" wire:confirm="Hapus tim ini beserta anggotanya?" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+                    </div>
+                </div>
+                <div class="border-t border-slate-100 bg-slate-50/60 px-6 py-3">
+                    <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Anggota</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        @forelse ($team->members as $member)
+                            <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
+                                {{ $member->name }}{{ $member->age !== null ? ' · ' . $member->age . ' th' : '' }}
+                                <button wire:click="delete('{{ $member->id }}')" wire:confirm="Hapus {{ $member->name }} dari tim ini?" class="text-slate-400 hover:text-red-600" title="Hapus anggota">&times;</button>
+                            </span>
+                        @empty
+                            <span class="text-xs text-slate-400">Belum ada anggota. Tambahkan lewat form di atas.</span>
+                        @endforelse
                     </div>
                 </div>
             </div>
