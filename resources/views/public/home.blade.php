@@ -134,9 +134,10 @@
         <section class="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
             <div class="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:justify-between sm:text-left">
                 <div>
-                    <p class="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.15em] text-amber-700 sm:justify-start">
-                        <x-icon name="clock" class="h-4 w-4" /> Batas Pendaftaran &amp; Pengumpulan Dana
-                    </p>
+                    <div class="flex flex-col items-center gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                        <x-icon name="clock" class="h-4 w-4 shrink-0 text-amber-700" />
+                        <p class="text-xs font-bold uppercase tracking-[0.15em] text-amber-700">Batas Pendaftaran &amp; Pengumpulan Dana</p>
+                    </div>
                     <p class="mt-1 text-sm text-stone-600">Daftar dan lunasi iuran sebelum {{ $event->registration_closes_at->translatedFormat('d F Y, H:i') }} WIB.</p>
                 </div>
                 <div id="registration-countdown" data-target="{{ $event->registration_closes_at->timestamp }}" class="grid grid-cols-4 gap-2 text-center">

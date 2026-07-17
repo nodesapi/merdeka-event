@@ -24,8 +24,8 @@
         @endif
 
         <section class="mt-6 w-full min-w-0 max-w-full overflow-x-clip">
-            <div class="flex items-center gap-3">
-                <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
+            <div class="flex flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left">
+                <span class="hidden h-7 w-1.5 rounded-full bg-red-600 sm:block"></span>
                 <div>
                     <h2 class="text-lg font-black text-stone-900">Peserta Bazaar Terdaftar</h2>
                     <p class="text-sm text-stone-500">{{ $bazaarSubmissions->count() }} dari {{ $bazaarSlotLimit }} lapak terisi @if ($bazaarSlotsRemaining > 0) &middot; sisa <span class="font-bold text-red-700">{{ $bazaarSlotsRemaining }}</span> slot @else &middot; <span class="font-bold text-red-700">kuota penuh</span> @endif.</p>
@@ -61,8 +61,8 @@
                 @csrf
 
                 <section class="merdeka-card overflow-x-clip p-5 sm:p-6">
-                    <div class="flex items-center gap-3">
-                        <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
+                    <div class="flex flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left">
+                        <span class="hidden h-7 w-1.5 rounded-full bg-red-600 sm:block"></span>
                         <div>
                             <h2 class="text-lg font-black text-stone-900">Data Pendaftar Lapak</h2>
                             <p class="text-sm text-stone-500">Boleh diisi oleh kepala keluarga maupun anggota keluarga yang sudah terdaftar di Data Warga.</p>
