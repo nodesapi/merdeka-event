@@ -64,6 +64,7 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::view('/susunan-acara', 'admin.schedule')->name('schedule');
         Route::get('/susunan-acara/export', [ReportController::class, 'schedule'])->name('schedule.export');
         Route::view('/goody-bag', 'admin.goody-bag')->name('goody-bag');
+        Route::view('/sponsor', 'admin.sponsor')->name('sponsor');
         Route::view('/panitia', 'admin.committee')->name('committee');
         Route::view('/lomba', 'admin.competitions')->name('competitions');
         Route::get('/peserta', function () {

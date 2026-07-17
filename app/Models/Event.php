@@ -61,6 +61,11 @@ class Event extends Model
         return $this->hasMany(GoodyBagItem::class);
     }
 
+    public function sponsors(): HasMany
+    {
+        return $this->hasMany(Sponsor::class);
+    }
+
     /**
      * Get the route key for the model.
      */

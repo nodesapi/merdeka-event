@@ -318,7 +318,14 @@
                 <span class="hidden h-7 w-1.5 rounded-full bg-red-600 md:block"></span>
                 <div>
                     <h2 class="text-xl font-black tracking-tight text-stone-900">Peserta Bazaar</h2>
-                    <p class="text-sm text-stone-500">Warga yang sudah buka lapak di acara ini.</p>
+                    <p class="text-sm text-stone-500">
+                        {{ $bazaarSubmissionsCount }} dari {{ $bazaarSlotLimit }} lapak terisi
+                        @if ($bazaarSlotsRemaining > 0)
+                            &middot; sisa <span class="font-bold text-red-700">{{ $bazaarSlotsRemaining }}</span> slot, siapa cepat dia dapat!
+                        @else
+                            &middot; <span class="font-bold text-red-700">kuota penuh</span>
+                        @endif
+                    </p>
                 </div>
             </div>
             <a href="{{ route('public.bazaar-form') }}" class="group inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-red-700 hover:underline">Lihat semua <x-icon name="arrow-right" class="h-4 w-4 transition group-hover:translate-x-0.5" /></a>
@@ -335,7 +342,11 @@
                         @if ($submission->resident_block)
                             <p class="truncate text-[11px] text-stone-500 sm:text-xs">Blok {{ $submission->resident_block }}</p>
                         @endif
-                        <span class="mt-2.5 inline-flex w-fit items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 sm:mt-3 sm:px-2.5 sm:py-1 sm:text-[11px]">{{ $submission->jenis_jualan }}</span>
+                        <div class="mt-2.5 flex flex-wrap items-center justify-center gap-1 sm:mt-3">
+                            @foreach ($submission->jenis_jualan_items as $item)
+                                <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 sm:px-2.5 sm:py-1 sm:text-[11px]">{{ $item }}</span>
+                            @endforeach
+                        </div>
                     </div>
                 </div>
             @empty
@@ -374,6 +385,28 @@
                             <p class="truncate text-xs text-stone-500">{{ $winner->competition->name }}</p>
                         </div>
                     </a>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if ($sponsors->isNotEmpty())
+        <section class="mt-10">
+            <div class="text-center">
+                <h2 class="text-xl font-black tracking-tight text-stone-900">Didukung Oleh</h2>
+                <p class="mt-1 text-sm text-stone-500">Terima kasih kepada sponsor & pendukung acara ini.</p>
+            </div>
+
+            <div class="mt-5 flex flex-wrap items-center justify-center gap-3">
+                @foreach ($sponsors as $sponsor)
+                    <div class="merdeka-card flex items-center gap-2.5 px-4 py-3">
+                        @if ($sponsor->logo_url)
+                            <img src="{{ $sponsor->logo_url }}" alt="{{ $sponsor->name }}" class="h-8 w-8 shrink-0 rounded-lg object-contain sm:h-10 sm:w-10">
+                        @else
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-700 text-white sm:h-10 sm:w-10"><x-icon name="sparkles" class="h-4 w-4 sm:h-5 sm:w-5" /></span>
+                        @endif
+                        <span class="text-sm font-bold text-stone-800">{{ $sponsor->name }}</span>
+                    </div>
                 @endforeach
             </div>
         </section>

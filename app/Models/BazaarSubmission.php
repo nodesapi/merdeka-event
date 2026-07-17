@@ -21,6 +21,11 @@ class BazaarSubmission extends Model
 {
     use HasFactory, HasUuidV7;
 
+    /**
+     * Kuota lapak bazaar per acara — siapa cepat dia dapat.
+     */
+    public const STALL_LIMIT = 15;
+
     public function event(): BelongsTo
     {
         return $this->belongsTo(Event::class);
@@ -29,6 +34,19 @@ class BazaarSubmission extends Model
     public function familySubmission(): BelongsTo
     {
         return $this->belongsTo(FamilySubmission::class);
+    }
+
+    /**
+     * Pecah "jenis_jualan" (dipisah koma) jadi daftar item, dipakai untuk
+     * menampilkan tiap jualan sebagai badge terpisah alih-alih satu blok teks.
+     */
+    public function getJenisJualanItemsAttribute(): array
+    {
+        return collect(explode(',', (string) $this->jenis_jualan))
+            ->map(fn ($item) => trim($item))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /**
@@ -55,6 +73,14 @@ class BazaarSubmission extends Model
      * (case-insensitive, spasi diabaikan). $exceptId dipakai saat admin mengedit
      * baris yang sudah ada, supaya baris itu sendiri tidak dianggap bentrok.
      */
+    /**
+     * Berapa slot lapak yang masih tersisa untuk event ini (tidak pernah negatif).
+     */
+    public static function slotsRemaining(Event $event): int
+    {
+        return max(0, static::STALL_LIMIT - static::where('event_id', $event->id)->count());
+    }
+
     public static function jenisJualanTaken(Event $event, string $jenisJualan, ?string $exceptId = null): bool
     {
         $normalized = trim(preg_replace('/\s+/', ' ', $jenisJualan));

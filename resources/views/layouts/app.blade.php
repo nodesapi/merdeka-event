@@ -24,6 +24,7 @@
                 ['route' => 'admin.event', 'label' => 'Acara & Jadwal', 'match' => 'admin.event'],
                 ['route' => 'admin.schedule', 'label' => 'Susunan Acara', 'match' => 'admin.schedule'],
                 ['route' => 'admin.goody-bag', 'label' => 'Goody Bag', 'match' => 'admin.goody-bag'],
+                ['route' => 'admin.sponsor', 'label' => 'Sponsor', 'match' => 'admin.sponsor'],
                 ['route' => 'admin.competitions', 'label' => 'Lomba', 'match' => 'admin.competitions'],
                 ['route' => 'admin.participants-index', 'label' => 'Peserta', 'match' => 'admin.participants-index,admin.participants'],
             ]],

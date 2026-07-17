@@ -77,6 +77,10 @@ class PublicController extends Controller
             ? $event->bazaarSubmissions()->latest()->take(6)->get()
             : collect();
 
+        $sponsors = $event
+            ? $event->sponsors()->orderBy('sort_order')->orderBy('name')->get()
+            : collect();
+
         return view('public.home', [
             'event' => $event,
             'committeeCount' => $event ? $event->committeeMembers()->where('is_active', true)->count() : 0,
@@ -89,6 +93,9 @@ class PublicController extends Controller
             'goodyBagItems' => $goodyBagItems,
             'bazaarSubmissions' => $bazaarSubmissions,
             'bazaarSubmissionsCount' => $event ? $event->bazaarSubmissions()->count() : 0,
+            'bazaarSlotLimit' => BazaarSubmission::STALL_LIMIT,
+            'bazaarSlotsRemaining' => $event ? BazaarSubmission::slotsRemaining($event) : BazaarSubmission::STALL_LIMIT,
+            'sponsors' => $sponsors,
         ]);
     }
 
@@ -253,6 +260,8 @@ class PublicController extends Controller
             'bazaarSubmissions' => $event
                 ? $event->bazaarSubmissions()->orderBy('name')->get()
                 : collect(),
+            'bazaarSlotLimit' => BazaarSubmission::STALL_LIMIT,
+            'bazaarSlotsRemaining' => $event ? BazaarSubmission::slotsRemaining($event) : BazaarSubmission::STALL_LIMIT,
         ]);
     }
 
@@ -263,6 +272,12 @@ class PublicController extends Controller
         if (! $event) {
             return back()->withErrors([
                 'name' => 'Belum ada acara aktif yang menerima pendaftaran bazaar.',
+            ])->withInput();
+        }
+
+        if (BazaarSubmission::slotsRemaining($event) <= 0) {
+            return back()->withErrors([
+                'name' => 'Maaf, kuota ' . BazaarSubmission::STALL_LIMIT . ' lapak bazaar sudah penuh. Siapa cepat dia dapat!',
             ])->withInput();
         }
 
