@@ -23,38 +23,40 @@
             </div>
         @endif
 
-        <section class="mt-6 w-full min-w-0 max-w-full overflow-x-clip">
-            <div class="flex flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left">
-                <span class="hidden h-7 w-1.5 rounded-full bg-red-600 sm:block"></span>
-                <div>
-                    <h2 class="text-lg font-black text-stone-900">Peserta Bazaar Terdaftar</h2>
-                    <p class="text-sm text-stone-500">{{ $bazaarSubmissions->count() }} dari {{ $bazaarSlotLimit }} lapak terisi @if ($bazaarSlotsRemaining > 0) &middot; sisa <span class="font-bold text-red-700">{{ $bazaarSlotsRemaining }}</span> slot @else &middot; <span class="font-bold text-red-700">kuota penuh</span> @endif.</p>
+        @if ($bazaarRegistrationOpen)
+            <section class="mt-6 w-full min-w-0 max-w-full overflow-x-clip">
+                <div class="flex flex-col items-center gap-2 text-center sm:flex-row sm:gap-3 sm:text-left">
+                    <span class="hidden h-7 w-1.5 rounded-full bg-red-600 sm:block"></span>
+                    <div>
+                        <h2 class="text-lg font-black text-stone-900">Peserta Bazaar Terdaftar</h2>
+                        <p class="text-sm text-stone-500">{{ $bazaarSubmissions->count() }} dari {{ $bazaarSlotLimit }} lapak terisi @if ($bazaarSlotsRemaining > 0) &middot; sisa <span class="font-bold text-red-700">{{ $bazaarSlotsRemaining }}</span> slot @else &middot; <span class="font-bold text-red-700">kuota penuh</span> @endif.</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-                @forelse ($bazaarSubmissions as $submission)
-                    <div class="merdeka-card group relative flex flex-col items-center overflow-hidden p-3.5 pt-5 text-center sm:p-5 sm:pt-6">
-                        <span class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-600"></span>
-                        <x-icon name="storefront" class="pointer-events-none absolute -right-3 -top-2 h-16 w-16 text-red-950/[0.05] sm:h-20 sm:w-20" />
-                        <div class="relative flex flex-col items-center">
-                            <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-red-600 text-white shadow-md shadow-red-600/20 sm:h-12 sm:w-12 sm:rounded-2xl"><x-icon name="storefront" class="h-5 w-5 sm:h-6 sm:w-6" /></span>
-                            <h3 class="mt-2.5 line-clamp-1 text-sm font-black text-stone-900 sm:mt-3 sm:text-base">{{ $submission->name }}</h3>
-                            @if ($submission->resident_block)
-                                <p class="truncate text-[11px] text-stone-500 sm:text-xs">Blok {{ $submission->resident_block }}</p>
-                            @endif
-                            <div class="mt-2.5 flex flex-wrap items-center justify-center gap-1 sm:mt-3">
-                                @foreach ($submission->jenis_jualan_items as $item)
-                                    <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 sm:px-2.5 sm:py-1 sm:text-[11px]">{{ $item }}</span>
-                                @endforeach
+                <div class="mt-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+                    @forelse ($bazaarSubmissions as $submission)
+                        <div class="merdeka-card group relative flex flex-col items-center overflow-hidden p-3.5 pt-5 text-center sm:p-5 sm:pt-6">
+                            <span class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-red-600"></span>
+                            <x-icon name="storefront" class="pointer-events-none absolute -right-3 -top-2 h-16 w-16 text-red-950/[0.05] sm:h-20 sm:w-20" />
+                            <div class="relative flex flex-col items-center">
+                                <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-red-600 text-white shadow-md shadow-red-600/20 sm:h-12 sm:w-12 sm:rounded-2xl"><x-icon name="storefront" class="h-5 w-5 sm:h-6 sm:w-6" /></span>
+                                <h3 class="mt-2.5 line-clamp-1 text-sm font-black text-stone-900 sm:mt-3 sm:text-base">{{ $submission->name }}</h3>
+                                @if ($submission->resident_block)
+                                    <p class="truncate text-[11px] text-stone-500 sm:text-xs">Blok {{ $submission->resident_block }}</p>
+                                @endif
+                                <div class="mt-2.5 flex flex-wrap items-center justify-center gap-1 sm:mt-3">
+                                    @foreach ($submission->jenis_jualan_items as $item)
+                                        <span class="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 sm:px-2.5 sm:py-1 sm:text-[11px]">{{ $item }}</span>
+                                    @endforeach
+                                </div>
                             </div>
                         </div>
-                    </div>
-                @empty
-                    <p class="col-span-2 text-sm text-stone-500 lg:col-span-3">Belum ada warga yang daftar bazaar. Jadilah yang pertama!</p>
-                @endforelse
-            </div>
-        </section>
+                    @empty
+                        <p class="col-span-2 text-sm text-stone-500 lg:col-span-3">Belum ada warga yang daftar bazaar. Jadilah yang pertama!</p>
+                    @endforelse
+                </div>
+            </section>
+        @endif
 
         @if (! $bazaarRegistrationOpen)
             <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">

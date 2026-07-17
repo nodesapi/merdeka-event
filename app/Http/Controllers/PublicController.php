@@ -95,6 +95,7 @@ class PublicController extends Controller
             'bazaarSubmissionsCount' => $event ? $event->bazaarSubmissions()->count() : 0,
             'bazaarSlotLimit' => BazaarSubmission::STALL_LIMIT,
             'bazaarSlotsRemaining' => $event ? BazaarSubmission::slotsRemaining($event) : BazaarSubmission::STALL_LIMIT,
+            'bazaarRegistrationOpen' => $event ? $event->isBazaarRegistrationOpen() : false,
             'sponsors' => $sponsors,
         ]);
     }
