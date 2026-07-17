@@ -2,10 +2,13 @@
 
 use App\Models\Transaction;
 use App\Models\User;
+use App\Traits\ConfirmsDeletion;
 use Livewire\Component;
 
 new class extends Component
 {
+    use ConfirmsDeletion;
+
     public string $type = 'income';
     public string $category = '';
     public $amount = '';
@@ -63,6 +66,8 @@ new class extends Component
 
     public function delete(string $id): void
     {
+        abort_unless(auth()->user()?->hasRole('admin'), 403, 'Hanya admin yang boleh menghapus transaksi.');
+
         Transaction::whereKey($id)->delete();
         $this->success_message = 'Transaksi berhasil dihapus.';
     }
@@ -255,7 +260,9 @@ new class extends Component
                                     {{ $trx->type === 'expense' ? '-' : '+' }}Rp{{ number_format($trx->amount, 0, ',', '.') }}
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <button wire:click="delete('{{ $trx->id }}')" wire:confirm="Hapus transaksi ini?" class="rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus</button>
+                                    @if (auth()->user()?->hasRole('admin'))
+                                        <button wire:click="confirmDelete('{{ $trx->id }}', 'transaksi ini')" class="rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus</button>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -275,4 +282,6 @@ new class extends Component
             </div>
         </div>
     </div>
+
+    <x-confirm-delete-modal :id="$confirmDeleteId" :label="$confirmDeleteLabel" />
 </div>

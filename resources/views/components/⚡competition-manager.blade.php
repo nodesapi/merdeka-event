@@ -3,10 +3,13 @@
 use Livewire\Component;
 use App\Models\Competition;
 use App\Models\Event;
+use App\Traits\ConfirmsDeletion;
 use Illuminate\Support\Str;
 
 new class extends Component
 {
+    use ConfirmsDeletion;
+
     public ?string $editingId = null;
 
     public $name = '';
@@ -278,7 +281,7 @@ new class extends Component
                         <div class="flex shrink-0 gap-2">
                             <a href="{{ route('admin.participants', $competition->slug) }}" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">Peserta &amp; Juara</a>
                             <button wire:click="edit('{{ $competition->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>
-                            <button wire:click="delete('{{ $competition->id }}')" wire:confirm="Hapus lomba ini beserta pesertanya?" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>
+                            <button wire:click="confirmDelete('{{ $competition->id }}', 'lomba ini beserta pesertanya')" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>
                         </div>
                     </div>
                 @empty
@@ -287,4 +290,6 @@ new class extends Component
             </div>
         </div>
     </div>
+
+    <x-confirm-delete-modal :id="$confirmDeleteId" :label="$confirmDeleteLabel" />
 </div>

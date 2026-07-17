@@ -1,11 +1,14 @@
 <?php
 
 use App\Models\User;
+use App\Traits\ConfirmsDeletion;
 use Illuminate\Validation\Rule;
 use Livewire\Component;
 
 new class extends Component
 {
+    use ConfirmsDeletion;
+
     public ?string $editingId = null;
 
     public string $name = '';
@@ -97,6 +100,8 @@ new class extends Component
 
     public function deleteUser(string $id): void
     {
+        abort_unless(auth()->user()?->hasRole('admin'), 403, 'Hanya admin yang boleh menghapus user.');
+
         if ($id === auth()->id()) {
             $this->success_message = 'Tidak bisa menghapus akun yang sedang login.';
             return;
@@ -263,8 +268,8 @@ new class extends Component
                                 <td class="px-4 py-3">
                                     <div class="flex items-center justify-end gap-1.5">
                                         <button wire:click="editUser('{{ $u->id }}')" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Edit</button>
-                                        @if ($u->id !== auth()->id())
-                                            <button wire:click="deleteUser('{{ $u->id }}')" wire:confirm="Hapus user {{ $u->name }}?" class="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus</button>
+                                        @if ($u->id !== auth()->id() && auth()->user()?->hasRole('admin'))
+                                            <button wire:click="confirmDelete('{{ $u->id }}', @js('user ' . $u->name), 'deleteUser')" class="rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus</button>
                                         @endif
                                     </div>
                                 </td>
@@ -277,4 +282,6 @@ new class extends Component
             </div>
         </div>
     </div>
+
+    <x-confirm-delete-modal :id="$confirmDeleteId" :label="$confirmDeleteLabel" />
 </div>

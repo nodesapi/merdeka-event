@@ -3,6 +3,7 @@
 use App\Models\MusicTrack;
 use App\Models\SiteSetting;
 use App\Support\ImageConverter;
+use App\Traits\ConfirmsDeletion;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Component;
@@ -10,7 +11,7 @@ use Livewire\WithFileUploads;
 
 new class extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, ConfirmsDeletion;
 
     public string $settingId = '';
 
@@ -546,7 +547,7 @@ new class extends Component
                                     <audio controls preload="none" src="{{ $track->url }}" class="mt-1 h-8 w-56 max-w-full"></audio>
                                 </div>
                             </div>
-                            <button type="button" wire:click="deleteMusic('{{ $track->id }}')" wire:confirm="Hapus lagu ini?" class="shrink-0 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Hapus</button>
+                            <button type="button" wire:click="confirmDelete('{{ $track->id }}', 'lagu ini', 'deleteMusic')" class="shrink-0 rounded-md border border-red-200 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50">Hapus</button>
                         </div>
                     @empty
                         <p class="py-4 text-center text-sm text-slate-400">Belum ada lagu. Unggah lagu kemerdekaan (mis. Indonesia Raya) di atas.</p>
@@ -562,4 +563,6 @@ new class extends Component
             </button>
         </div>
     </form>
+
+    <x-confirm-delete-modal :id="$confirmDeleteId" :label="$confirmDeleteLabel" />
 </div>

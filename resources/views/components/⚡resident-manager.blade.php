@@ -3,11 +3,14 @@
 use App\Models\Event;
 use App\Models\FamilyMember;
 use App\Models\FamilySubmission;
+use App\Traits\ConfirmsDeletion;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 new class extends Component
 {
+    use ConfirmsDeletion;
+
     public string $search = '';
     public string $success_message = '';
 
@@ -26,6 +29,8 @@ new class extends Component
 
     public function delete(string $id): void
     {
+        abort_unless(auth()->user()?->hasRole('admin'), 403, 'Hanya admin yang boleh menghapus data warga.');
+
         // Menghapus pendaftaran keluarga sekaligus seluruh anggotanya (cascade di DB).
         FamilySubmission::whereKey($id)->delete();
         $this->success_message = 'Data warga (pendaftaran keluarga) dihapus.';
@@ -207,7 +212,9 @@ new class extends Component
                                             <span class="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">Menunggu</span>
                                         @endif
                                         <button wire:click="startAdd('{{ $submission->id }}')" class="rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">+ Tambah Anggota</button>
-                                        <button wire:click="delete('{{ $submission->id }}')" wire:confirm="Hapus data warga ini beserta seluruh anggotanya? Tindakan ini tidak bisa dibatalkan." class="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus Keluarga</button>
+                                        @if (auth()->user()?->hasRole('admin'))
+                                            <button wire:click="confirmDelete('{{ $submission->id }}', 'data warga ini beserta seluruh anggotanya')" class="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-semibold text-red-600 transition hover:bg-red-50">Hapus Keluarga</button>
+                                        @endif
                                     </div>
                                 </div>
                             </td>
@@ -272,4 +279,6 @@ new class extends Component
             </table>
         </div>
     </div>
+
+    <x-confirm-delete-modal :id="$confirmDeleteId" :label="$confirmDeleteLabel" />
 </div>

@@ -5,9 +5,12 @@ use App\Models\Competition;
 use App\Models\CompetitionParticipant;
 use App\Models\CompetitionTeam;
 use App\Models\FamilyMember;
+use App\Traits\ConfirmsDeletion;
 
 new class extends Component
 {
+    use ConfirmsDeletion;
+
     public string $competitionId;
     public string $competitionName = '';
     public string $competitionSlug = '';
@@ -609,7 +612,7 @@ new class extends Component
 
                                         <span class="h-6 w-px bg-slate-200"></span>
 
-                                        <button wire:click="delete('{{ $p->id }}')" wire:confirm="Hapus peserta ini?" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+                                        <button wire:click="confirmDelete('{{ $p->id }}', 'peserta ini')" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
                                     </div>
                                 </td>
                             </tr>
@@ -747,7 +750,7 @@ new class extends Component
 
                         <span class="h-6 w-px bg-slate-200"></span>
 
-                        <button wire:click="deleteTeam('{{ $team->id }}')" wire:confirm="Hapus tim ini beserta anggotanya?" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+                        <button wire:click="confirmDelete('{{ $team->id }}', 'tim ini beserta anggotanya', 'deleteTeam')" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
                     </div>
                 </div>
                 <div class="border-t border-slate-100 bg-slate-50/60 px-6 py-3">
@@ -756,7 +759,7 @@ new class extends Component
                         @forelse ($team->members as $member)
                             <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
                                 {{ $member->name }}{{ $member->age !== null ? ' · ' . $member->age . ' th' : '' }}
-                                <button wire:click="delete('{{ $member->id }}')" wire:confirm="Hapus {{ $member->name }} dari tim ini?" class="text-slate-400 hover:text-red-600" title="Hapus anggota">&times;</button>
+                                <button wire:click="confirmDelete('{{ $member->id }}', @js($member->name . ' dari tim ini'))" class="text-slate-400 hover:text-red-600" title="Hapus anggota">&times;</button>
                             </span>
                         @empty
                             <span class="text-xs text-slate-400">Belum ada anggota. Tambahkan lewat form di atas.</span>
@@ -770,4 +773,6 @@ new class extends Component
             </div>
         @endforelse
     @endif
+
+    <x-confirm-delete-modal :id="$confirmDeleteId" :label="$confirmDeleteLabel" />
 </div>

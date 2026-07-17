@@ -5,10 +5,11 @@ use Livewire\WithFileUploads;
 use App\Models\CommitteeMember;
 use App\Models\Event;
 use App\Support\ImageConverter;
+use App\Traits\ConfirmsDeletion;
 
 new class extends Component
 {
-    use WithFileUploads;
+    use WithFileUploads, ConfirmsDeletion;
 
     public ?string $editingId = null;
 
@@ -269,7 +270,7 @@ new class extends Component
                         </div>
                         <div class="flex shrink-0 gap-2">
                             <button wire:click="edit('{{ $member->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>
-                            <button wire:click="delete('{{ $member->id }}')" wire:confirm="Hapus panitia ini?" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>
+                            <button wire:click="confirmDelete('{{ $member->id }}', 'panitia ini')" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>
                         </div>
                     </div>
                 @empty
@@ -278,4 +279,6 @@ new class extends Component
             </div>
         </div>
     </div>
+
+    <x-confirm-delete-modal :id="$confirmDeleteId" :label="$confirmDeleteLabel" />
 </div>
