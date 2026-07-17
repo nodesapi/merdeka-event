@@ -56,7 +56,11 @@
             </div>
         </section>
 
-        @if ($bazaarSlotsRemaining > 0)
+        @if (! $bazaarRegistrationOpen)
+            <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-800">
+                <p class="text-sm font-semibold">Pendaftaran lapak bazaar sedang ditutup sementara oleh panitia. Pantau terus halaman ini untuk info pembukaan berikutnya.</p>
+            </div>
+        @elseif ($bazaarSlotsRemaining > 0)
             <form method="POST" action="{{ route('public.bazaar-form.store') }}" class="mt-6 w-full min-w-0 max-w-full space-y-6 overflow-x-clip text-left">
                 @csrf
 

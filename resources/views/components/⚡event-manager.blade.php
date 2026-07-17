@@ -27,6 +27,7 @@ new class extends Component
 
     public $bazaar_poster;
     public ?string $bazaar_poster_path = null;
+    public $bazaar_registration_open = true;
 
     public $success_message = '';
 
@@ -50,6 +51,7 @@ new class extends Component
             $this->contribution_guidance = $event->contribution_guidance;
             $this->contribution_target_households = $event->contribution_target_households ? (string) $event->contribution_target_households : '';
             $this->bazaar_poster_path = $event->bazaar_poster_path;
+            $this->bazaar_registration_open = $event->bazaar_registration_open;
         }
     }
 
@@ -82,6 +84,7 @@ new class extends Component
             'contribution_guidance' => 'nullable|string',
             'contribution_target_households' => 'nullable|integer|min:0',
             'bazaar_poster' => 'nullable|image|max:4096',
+            'bazaar_registration_open' => 'boolean',
         ], [
             'end_date.after_or_equal' => 'Tanggal selesai harus sama atau setelah tanggal mulai.',
         ]);
@@ -373,6 +376,11 @@ new class extends Component
                                     <span class="h-4 w-1.5 rounded-full bg-red-600"></span>
                                     <h4 class="text-base font-semibold text-slate-900">Promosi Bazaar</h4>
                                 </div>
+
+                                <label class="mb-5 flex items-start gap-3">
+                                    <input type="checkbox" wire:model="bazaar_registration_open" class="mt-0.5 h-5 w-5 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                                    <span class="text-sm text-slate-700">Buka pendaftaran lapak bazaar untuk warga. Matikan kapan saja untuk menutup sementara (mis. kuota penuh atau belum waktunya) tanpa perlu mengubah data lain.</span>
+                                </label>
 
                                 <label class="mb-1.5 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Poster Bazaar</label>
                                 <div class="mb-2 flex h-40 items-center justify-center overflow-hidden rounded-lg border border-dashed border-slate-300 bg-slate-50">

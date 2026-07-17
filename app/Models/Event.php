@@ -25,6 +25,7 @@ use Illuminate\Support\Carbon;
     'contribution_guidance',
     'contribution_target_households',
     'bazaar_poster_path',
+    'bazaar_registration_open',
     'description'
 ])]
 class Event extends Model
@@ -83,6 +84,7 @@ class Event extends Model
             'lomba_registration_opens_at' => 'datetime',
             'recommended_contribution_amount' => 'decimal:2',
             'contribution_target_households' => 'integer',
+            'bazaar_registration_open' => 'boolean',
         ];
     }
 
@@ -92,6 +94,14 @@ class Event extends Model
     public function isLombaRegistrationOpen(): bool
     {
         return $this->lomba_registration_opens_at === null || $this->lomba_registration_opens_at->isPast();
+    }
+
+    /**
+     * Apakah pendaftaran lapak bazaar sedang dibuka (saklar manual panitia).
+     */
+    public function isBazaarRegistrationOpen(): bool
+    {
+        return (bool) $this->bazaar_registration_open;
     }
 
     /**

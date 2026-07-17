@@ -262,6 +262,7 @@ class PublicController extends Controller
                 : collect(),
             'bazaarSlotLimit' => BazaarSubmission::STALL_LIMIT,
             'bazaarSlotsRemaining' => $event ? BazaarSubmission::slotsRemaining($event) : BazaarSubmission::STALL_LIMIT,
+            'bazaarRegistrationOpen' => $event ? $event->isBazaarRegistrationOpen() : false,
         ]);
     }
 
@@ -272,6 +273,12 @@ class PublicController extends Controller
         if (! $event) {
             return back()->withErrors([
                 'name' => 'Belum ada acara aktif yang menerima pendaftaran bazaar.',
+            ])->withInput();
+        }
+
+        if (! $event->isBazaarRegistrationOpen()) {
+            return back()->withErrors([
+                'name' => 'Pendaftaran lapak bazaar sedang ditutup oleh panitia.',
             ])->withInput();
         }
 
