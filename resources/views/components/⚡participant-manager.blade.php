@@ -32,6 +32,9 @@ new class extends Component
     // Tambah tim (lomba grup): buat tim, lalu tambah anggota lintas keluarga
     public $new_team_name = '';
     public $selectedTeamId = '';
+
+    // Kelompokkan peserta yang sudah daftar sendiri (pool "menunggu dikelompokkan") ke tim
+    public array $assignTeamSelection = [];
     public $team_member_registration_number = '';
     public $team_member_name = '';
     public $team_member_resident_block = '';
@@ -156,6 +159,41 @@ new class extends Component
     protected function selectedTeam(): CompetitionTeam
     {
         return CompetitionTeam::where('competition_id', $this->competitionId)->findOrFail($this->selectedTeamId);
+    }
+
+    /**
+     * Masukkan peserta yang sudah daftar sendiri (menunggu dikelompokkan) ke sebuah tim.
+     */
+    public function assignToTeam(string $participantId)
+    {
+        $teamId = $this->assignTeamSelection[$participantId] ?? '';
+
+        if ($teamId === '') {
+            $this->addError('assign_' . $participantId, 'Pilih tim tujuan terlebih dahulu.');
+            return;
+        }
+
+        $participant = $this->participant($participantId);
+        $team = CompetitionTeam::where('competition_id', $this->competitionId)->findOrFail($teamId);
+
+        if ($this->maxTeamSize !== null && $team->members()->count() >= $this->maxTeamSize) {
+            $this->addError('assign_' . $participantId, $team->display_name . ' sudah mencapai maksimal ' . $this->maxTeamSize . ' anggota.');
+            return;
+        }
+
+        $participant->update(['competition_team_id' => $team->id]);
+        unset($this->assignTeamSelection[$participantId]);
+        $this->success_message = $participant->name . ' dimasukkan ke ' . $team->display_name . '.';
+    }
+
+    /**
+     * Kembalikan anggota tim ke pool "menunggu dikelompokkan" (koreksi salah kelompok).
+     */
+    public function unassignFromTeam(string $participantId)
+    {
+        $participant = $this->participant($participantId);
+        $participant->update(['competition_team_id' => null]);
+        $this->success_message = $participant->name . ' dikembalikan ke daftar menunggu dikelompokkan.';
     }
 
     /**
@@ -420,10 +458,17 @@ new class extends Component
                 ->orderBy('created_at')
                 ->get();
 
+            $unassigned = CompetitionParticipant::where('competition_id', $this->competitionId)
+                ->whereNull('competition_team_id')
+                ->with('familyMember:id,registration_number')
+                ->orderBy('name')
+                ->get();
+
             return [
                 'teams' => $teams,
+                'unassigned' => $unassigned,
                 'participantsByCategory' => collect(),
-                'totalParticipants' => $teams->sum(fn ($t) => $t->members->count()),
+                'totalParticipants' => $teams->sum(fn ($t) => $t->members->count()) + $unassigned->count(),
             ];
         }
 
@@ -702,6 +747,43 @@ new class extends Component
             @endif
         </div>
 
+        <!-- Peserta yang daftar sendiri lewat form publik, belum masuk tim -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-8 overflow-hidden">
+            <div class="flex items-center gap-2 px-6 py-3 border-b border-slate-100 bg-slate-50">
+                <span class="w-2 h-4 bg-amber-500 rounded"></span>
+                <h4 class="font-semibold text-slate-900">Menunggu Dikelompokkan</h4>
+                <span class="text-xs px-2 py-0.5 bg-white text-slate-600 rounded border border-slate-200">{{ $unassigned->count() }} peserta</span>
+            </div>
+            @forelse ($unassigned as $p)
+                <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100 last:border-b-0">
+                    <div class="min-w-0">
+                        <div class="font-medium text-slate-900">{{ $p->name }}{{ $p->age !== null ? ' · ' . $p->age . ' th' : '' }}</div>
+                        <div class="mt-0.5 text-[11px] text-slate-400">
+                            @if ($p->familyMember?->registration_number)
+                                No. Daftar: <span class="font-semibold text-slate-500">{{ $p->familyMember->registration_number }}</span>
+                            @else
+                                Peserta manual
+                            @endif
+                            @if ($p->resident_block) · Blok {{ $p->resident_block }} @endif
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select wire:model="assignTeamSelection.{{ $p->id }}" data-custom-select class="w-48 px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                            <option value="">— Pilih tim —</option>
+                            @foreach ($teams as $t)
+                                <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->members->count() }} anggota)</option>
+                            @endforeach
+                        </select>
+                        <button wire:click="assignToTeam('{{ $p->id }}')" class="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-medium shadow-sm">Masukkan ke Tim</button>
+                        <button wire:click="confirmDelete('{{ $p->id }}', 'peserta ini')" class="shrink-0 px-3 py-2 border border-red-200 text-red-600 rounded-md text-xs font-medium hover:bg-red-50">Hapus</button>
+                    </div>
+                    @error('assign_' . $p->id) <div class="w-full text-xs text-red-600">{{ $message }}</div> @enderror
+                </div>
+            @empty
+                <div class="p-6 text-center text-slate-400 text-sm">Belum ada peserta yang menunggu dikelompokkan.</div>
+            @endforelse
+        </div>
+
         <!-- Daftar tim -->
         @forelse ($teams as $team)
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
@@ -759,6 +841,7 @@ new class extends Component
                         @forelse ($team->members as $member)
                             <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
                                 {{ $member->name }}{{ $member->age !== null ? ' · ' . $member->age . ' th' : '' }}
+                                <button wire:click="unassignFromTeam('{{ $member->id }}')" class="text-slate-400 hover:text-amber-600" title="Kembalikan ke daftar menunggu dikelompokkan">&#8617;</button>
                                 <button wire:click="confirmDelete('{{ $member->id }}', @js($member->name . ' dari tim ini'))" class="text-slate-400 hover:text-red-600" title="Hapus anggota">&times;</button>
                             </span>
                         @empty

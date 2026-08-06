@@ -746,9 +746,10 @@ class PublicController extends Controller
     {
         $event = $this->activeEvent();
 
-        // Lomba grup diatur & diisi panitia lewat panel admin, tidak lewat form publik ini.
+        // Lomba grup ikut tampil: warga daftar sendiri lewat No Daftar, lalu panitia
+        // mengelompokkan pendaftar menjadi tim lewat panel admin.
         $competitions = $event
-            ? $event->competitions()->where('status', 'published')->where('type', 'individual')->orderBy('name')->get()
+            ? $event->competitions()->where('status', 'published')->orderBy('name')->get()
             : collect();
 
         return view('public.lomba-register', [
@@ -794,7 +795,6 @@ class PublicController extends Controller
 
         $competitions = $event->competitions()
             ->where('status', 'published')
-            ->where('type', 'individual')
             ->orderBy('name')
             ->get()
             ->map(function (Competition $competition) use ($member, $registeredIds) {
@@ -804,6 +804,7 @@ class PublicController extends Controller
                 return [
                     'id' => $competition->id,
                     'name' => $competition->name,
+                    'type' => $competition->type,
                     'age_limit' => $competition->age_limit_label,
                     'eligible' => $eligible,
                     'already' => $already,
@@ -864,7 +865,6 @@ class PublicController extends Controller
 
         $competitions = $event->competitions()
             ->where('status', 'published')
-            ->where('type', 'individual')
             ->whereIn('id', $validated['competition_ids'])
             ->get();
 

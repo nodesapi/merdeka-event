@@ -192,7 +192,10 @@
 
                         checkbox.value = c.id;
                         name.textContent = c.name;
-                        meta.textContent = c.age_limit ? c.age_limit : 'Terbuka semua umur';
+                        const ageLimit = c.age_limit ? c.age_limit : 'Terbuka semua umur';
+                        meta.textContent = c.type === 'group'
+                            ? ageLimit + ' · Lomba beregu, tim ditentukan panitia'
+                            : ageLimit;
 
                         const disabled = c.already || !c.eligible;
                         if (disabled) {
