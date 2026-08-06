@@ -34,6 +34,11 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/galeri/thumb/{filename}', 'galeriThumbnail')->name('public.galeri.thumb');
 });
 
+// Layar tampilan undian doorprize — publik, tanpa login, dibuka di device terpisah
+// yang diproyeksikan ke layar/TV venue. Statusnya disinkronkan dari halaman kontrol
+// admin lewat cache, bukan lewat sesi login.
+Route::view('/doorprize', 'public.doorprize-display')->name('public.doorprize');
+
 /*
 |--------------------------------------------------------------------------
 | Payment webhook (PayHook / cekbayar.com) — publik, diverifikasi HMAC
@@ -90,6 +95,7 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::get('/transaksi/export', [ReportController::class, 'transactions'])->name('transactions.export');
         Route::view('/rab', 'admin.rab')->name('rab');
         Route::get('/rab/export', [ReportController::class, 'rab'])->name('rab.export');
+        Route::view('/doorprize', 'admin.doorprize')->name('doorprize');
         Route::view('/pengaturan', 'admin.settings')->name('settings');
         Route::view('/users', 'admin.users')->middleware('role:admin')->name('users');
         Route::get('/lomba/{competition:slug}/peserta', function (Competition $competition) {

@@ -27,6 +27,7 @@
                 ['route' => 'admin.sponsor', 'label' => 'Sponsor', 'match' => 'admin.sponsor'],
                 ['route' => 'admin.competitions', 'label' => 'Lomba', 'match' => 'admin.competitions'],
                 ['route' => 'admin.participants-index', 'label' => 'Peserta', 'match' => 'admin.participants-index,admin.participants'],
+                ['route' => 'admin.doorprize', 'label' => 'Undian Doorprize', 'match' => 'admin.doorprize'],
             ]],
             ['heading' => 'Warga', 'items' => [
                 ['route' => 'admin.family-submissions', 'label' => 'Pendaftaran Warga', 'match' => 'admin.family-submissions'],
