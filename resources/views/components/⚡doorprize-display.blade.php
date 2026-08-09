@@ -121,23 +121,21 @@ new class extends Component
         </div>
     </div>
 
-    <div class="fixed right-4 top-4 z-20 flex flex-col items-end gap-2">
-        <button
-            @click="toggleFullscreen"
-            class="flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-sm text-white/80 hover:bg-black/50"
-        >
-            <x-icon name="expand" class="h-4 w-4" />
-            <span x-text="isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh'"></span>
-        </button>
-        <button
-            @click="toggleSound"
-            class="flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-sm text-white/80 hover:bg-black/50"
-        >
-            <x-icon name="speaker" x-show="soundEnabled" class="h-4 w-4" />
-            <x-icon name="speaker-off" x-show="!soundEnabled" class="h-4 w-4" />
-            <span x-text="soundEnabled ? 'Suara Aktif' : 'Aktifkan Suara'"></span>
-        </button>
-    </div>
+    <button
+        @click="toggleSound"
+        class="fixed bottom-4 left-4 z-20 flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-sm text-white/80 hover:bg-black/50"
+    >
+        <x-icon name="speaker" x-show="soundEnabled" class="h-4 w-4" />
+        <x-icon name="speaker-off" x-show="!soundEnabled" class="h-4 w-4" />
+        <span x-text="soundEnabled ? 'Suara Aktif' : 'Aktifkan Suara'"></span>
+    </button>
+    <button
+        @click="toggleFullscreen"
+        class="fixed bottom-4 right-4 z-20 flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-sm text-white/80 hover:bg-black/50"
+    >
+        <x-icon name="expand" class="h-4 w-4" />
+        <span x-text="isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh'"></span>
+    </button>
 
     <div class="relative flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
         @if ($siteLogoUrl)

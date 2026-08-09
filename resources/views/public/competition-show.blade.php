@@ -30,7 +30,7 @@
                         @endif
                     </div>
                     @if ($competition->description)
-                        <p class="mt-3 max-w-2xl text-sm leading-6 text-stone-500">{{ $competition->description }}</p>
+                        <p class="mt-3 max-w-2xl whitespace-pre-line text-sm leading-6 text-stone-500">{{ $competition->description }}</p>
                     @endif
                 </div>
             </div>

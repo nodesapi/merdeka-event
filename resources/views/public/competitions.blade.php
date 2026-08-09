@@ -32,7 +32,7 @@
                 @if ($competition->age_limit_label)
                     <p class="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">{{ $competition->age_limit_label }}</p>
                 @endif
-                <p class="mt-2 line-clamp-3 flex-1 text-sm leading-6 text-stone-500">{{ $competition->description }}</p>
+                <p class="mt-2 line-clamp-3 flex-1 whitespace-pre-line text-sm leading-6 text-stone-500">{{ $competition->description }}</p>
                 <div class="mt-3 flex items-center justify-between border-t border-stone-100 pt-3 text-sm">
                     <span class="font-medium text-stone-400">{{ $competition->total_rounds }} babak</span>
                     <span class="font-semibold text-red-700 group-hover:underline">Lihat detail &rarr;</span>

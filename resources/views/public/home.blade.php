@@ -304,7 +304,7 @@
                     <span class="mt-1.5 inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 sm:mt-2 sm:px-2.5 sm:py-1 sm:text-[11px]"><x-icon name="users" class="h-3 w-3 sm:h-3.5 sm:w-3.5" /> {{ $competition->participants_count }} peserta</span>
                     <h3 class="mt-2.5 line-clamp-2 text-sm font-black text-stone-900 sm:mt-3.5 sm:text-lg">{{ $competition->name }}</h3>
                     <p class="mt-1 line-clamp-1 text-xs font-semibold text-red-700 sm:text-sm">{{ $competition->target_participants }}</p>
-                    <p class="mt-2 line-clamp-2 flex-1 text-[11px] leading-5 text-stone-500 sm:text-sm sm:leading-6">{{ $competition->description }}</p>
+                    <p class="mt-2 line-clamp-2 flex-1 whitespace-pre-line text-[11px] leading-5 text-stone-500 sm:text-sm sm:leading-6">{{ $competition->description }}</p>
                     <span class="mt-3 flex w-full items-center justify-center gap-1 border-t border-stone-100 pt-2.5 text-xs font-bold text-red-700 sm:mt-4 sm:pt-3 sm:text-sm">Lihat detail <x-icon name="arrow-right" class="h-3.5 w-3.5 transition group-hover:translate-x-1 sm:h-4 sm:w-4" /></span>
                 </a>
             @empty
