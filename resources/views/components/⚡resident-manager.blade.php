@@ -21,6 +21,13 @@ new class extends Component
     public $newMemberAge = null;
     public string $newMemberGender = '';
 
+    // Form "Edit Anggota" inline per baris.
+    public ?string $editingMemberId = null;
+    public string $editName = '';
+    public string $editRelationship = 'anak';
+    public $editAge = null;
+    public string $editGender = '';
+
     protected function activeEvent(): ?Event
     {
         return Event::where('status', 'active')->latest('start_date')->first()
@@ -39,6 +46,7 @@ new class extends Component
     public function startAdd(string $submissionId): void
     {
         $this->addingToId = $submissionId;
+        $this->editingMemberId = null;
         $this->reset(['newMemberName', 'newMemberAge', 'newMemberGender']);
         $this->newMemberRelationship = 'anak';
         $this->resetErrorBag();
@@ -90,6 +98,46 @@ new class extends Component
         $this->success_message = 'Anggota "' . $name . '" ditambahkan ke keluarga ' . $submission->head_of_family_name . ' dengan No. Daftar ' . $registrationNumber . ' (tanpa iuran tambahan).';
     }
 
+    public function editMember(string $memberId): void
+    {
+        $member = FamilyMember::findOrFail($memberId);
+
+        $this->addingToId = null;
+        $this->editingMemberId = $member->id;
+        $this->editName = $member->name;
+        $this->editRelationship = $member->relationship;
+        $this->editAge = $member->age;
+        $this->editGender = $member->gender ?? '';
+        $this->resetErrorBag();
+    }
+
+    public function cancelEditMember(): void
+    {
+        $this->reset(['editingMemberId', 'editName', 'editAge', 'editGender']);
+        $this->editRelationship = 'anak';
+    }
+
+    public function updateMember(): void
+    {
+        $data = $this->validate([
+            'editName' => 'required|string|max:255',
+            'editRelationship' => 'required|in:ayah,ibu,anak,lainnya',
+            'editAge' => 'nullable|integer|min:0|max:120',
+            'editGender' => 'nullable|in:L,P',
+        ], [], ['editName' => 'nama anggota']);
+
+        $member = FamilyMember::findOrFail($this->editingMemberId);
+        $member->update([
+            'name' => $data['editName'],
+            'relationship' => $data['editRelationship'],
+            'age' => ($data['editAge'] !== null && $data['editAge'] !== '') ? (int) $data['editAge'] : null,
+            'gender' => $data['editGender'] ?: null,
+        ]);
+
+        $this->success_message = 'Data anggota "' . $member->name . '" berhasil diperbarui.';
+        $this->cancelEditMember();
+    }
+
     public function dismissAlert(): void
     {
         $this->success_message = '';
@@ -116,7 +164,8 @@ new class extends Component
             $query->where(function ($q) use ($term) {
                 $q->where('head_of_family_name', 'like', $term)
                     ->orWhere('resident_block', 'like', $term)
-                    ->orWhere('reference_code', 'like', $term);
+                    ->orWhere('reference_code', 'like', $term)
+                    ->orWhereHas('familyMembers', fn ($mq) => $mq->where('name', 'like', $term));
             });
         }
 
@@ -175,7 +224,7 @@ new class extends Component
                     </a>
                 </div>
             </div>
-            <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 sm:max-w-xs" placeholder="Cari nama / blok / No. Ref...">
+            <input type="text" wire:model.live.debounce.300ms="search" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 sm:max-w-xs" placeholder="Cari nama warga / anggota / blok / No. Ref...">
         </div>
         <div class="overflow-x-auto">
             <table class="w-full min-w-[760px] text-left text-sm">
@@ -187,13 +236,14 @@ new class extends Component
                         <th class="px-4 py-3">Umur</th>
                         <th class="px-4 py-3">L/P</th>
                         <th class="px-4 py-3">Lomba</th>
+                        <th class="px-4 py-3 w-20">Aksi</th>
                     </tr>
                 </thead>
                 @forelse ($submissions as $submission)
                     <tbody class="border-t-4 border-slate-100">
                         {{-- Header grup per keluarga --}}
                         <tr>
-                            <td colspan="6" class="border-l-4 border-red-500 bg-slate-100 px-4 py-2.5">
+                            <td colspan="7" class="border-l-4 border-red-500 bg-slate-100 px-4 py-2.5">
                                 <div class="flex flex-wrap items-center justify-between gap-2">
                                     <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                                         <span class="text-sm font-bold text-slate-900">Keluarga {{ $submission->head_of_family_name }}</span>
@@ -220,34 +270,77 @@ new class extends Component
                             </td>
                         </tr>
                         {{-- Satu baris per anggota keluarga, tiap anggota punya No. Daftar sendiri --}}
+                        @php
+                            $headMemberId = $submission->familyMembers->first(fn ($m) => in_array($m->relationship, ['ayah', 'ibu']))?->id
+                                ?? $submission->familyMembers->first()?->id;
+                        @endphp
                         @foreach ($submission->familyMembers as $member)
-                            <tr class="hover:bg-slate-50/60">
-                                <td class="px-4 py-2.5">
-                                    <span class="rounded-md bg-red-700 px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-white">{{ $member->registration_number ?: '—' }}</span>
-                                </td>
-                                <td class="px-4 py-2.5 font-medium text-slate-900">
-                                    {{ $member->name }}
-                                    @if ($loop->first)
-                                        <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Kepala</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-2.5 capitalize text-slate-600">{{ $member->relationship }}</td>
-                                <td class="px-4 py-2.5 text-slate-600">{{ $member->age !== null ? $member->age . ' th' : '-' }}</td>
-                                <td class="px-4 py-2.5 text-slate-600">{{ $member->gender ?: '-' }}</td>
-                                <td class="px-4 py-2.5">
-                                    @if ($member->competition_participations_count > 0)
-                                        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Ikut {{ $member->competition_participations_count }} lomba</span>
-                                    @else
-                                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Belum ikut</span>
-                                    @endif
-                                </td>
-                            </tr>
+                            @if ($editingMemberId === $member->id)
+                                <tr class="bg-amber-50/40">
+                                    <td class="px-4 py-2.5">
+                                        <span class="rounded-md bg-red-700 px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-white">{{ $member->registration_number ?: '—' }}</span>
+                                    </td>
+                                    <td class="px-4 py-2.5">
+                                        <input type="text" wire:model="editName" placeholder="Nama anggota" class="w-full min-w-[140px] rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                        @error('editName') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                    </td>
+                                    <td class="px-4 py-2.5">
+                                        <select wire:model="editRelationship" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                            <option value="ayah">Ayah</option>
+                                            <option value="ibu">Ibu</option>
+                                            <option value="anak">Anak</option>
+                                            <option value="lainnya">Lainnya</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-2.5">
+                                        <input type="number" wire:model="editAge" placeholder="Umur" class="w-20 rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                    </td>
+                                    <td class="px-4 py-2.5">
+                                        <select wire:model="editGender" class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
+                                            <option value="">L/P</option>
+                                            <option value="L">Laki-laki</option>
+                                            <option value="P">Perempuan</option>
+                                        </select>
+                                    </td>
+                                    <td class="px-4 py-2.5" colspan="2">
+                                        <div class="flex items-center gap-2">
+                                            <button wire:click="updateMember" class="rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-800">Simpan</button>
+                                            <button wire:click="cancelEditMember" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Batal</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @else
+                                <tr class="hover:bg-slate-50/60">
+                                    <td class="px-4 py-2.5">
+                                        <span class="rounded-md bg-red-700 px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-white">{{ $member->registration_number ?: '—' }}</span>
+                                    </td>
+                                    <td class="px-4 py-2.5 font-medium text-slate-900">
+                                        {{ $member->name }}
+                                        @if ($member->id === $headMemberId)
+                                            <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Kepala</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2.5 capitalize text-slate-600">{{ $member->relationship }}</td>
+                                    <td class="px-4 py-2.5 text-slate-600">{{ $member->age !== null ? $member->age . ' th' : '-' }}</td>
+                                    <td class="px-4 py-2.5 text-slate-600">{{ $member->gender ?: '-' }}</td>
+                                    <td class="px-4 py-2.5">
+                                        @if ($member->competition_participations_count > 0)
+                                            <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Ikut {{ $member->competition_participations_count }} lomba</span>
+                                        @else
+                                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-500">Belum ikut</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2.5">
+                                        <button wire:click="editMember('{{ $member->id }}')" class="rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Edit</button>
+                                    </td>
+                                </tr>
+                            @endif
                         @endforeach
 
                         {{-- Form tambah anggota (muncul saat "+ Tambah Anggota" diklik untuk keluarga ini) --}}
                         @if ($addingToId === $submission->id)
                             <tr class="bg-emerald-50/40">
-                                <td colspan="6" class="px-4 py-3">
+                                <td colspan="7" class="px-4 py-3">
                                     <p class="mb-2 text-xs font-semibold text-slate-600">Tambah anggota ke keluarga {{ $submission->head_of_family_name }} <span class="font-normal text-slate-400">— No. Daftar baru (lanjut nomor terakhir), tanpa iuran</span></p>
                                     <div class="flex flex-wrap items-center gap-2">
                                         <input type="text" wire:model="newMemberName" placeholder="Nama anggota" class="min-w-[160px] flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500">
@@ -273,7 +366,7 @@ new class extends Component
                     </tbody>
                 @empty
                     <tbody>
-                        <tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">Belum ada warga terdaftar. Data akan muncul otomatis setelah warga mengisi Form Warga.</td></tr>
+                        <tr><td colspan="7" class="px-4 py-10 text-center text-slate-400">Belum ada warga terdaftar. Data akan muncul otomatis setelah warga mengisi Form Warga.</td></tr>
                     </tbody>
                 @endforelse
             </table>
