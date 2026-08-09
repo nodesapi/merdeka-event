@@ -271,7 +271,10 @@ new class extends Component
                         </tr>
                         {{-- Satu baris per anggota keluarga, tiap anggota punya No. Daftar sendiri --}}
                         @php
-                            $headMemberId = $submission->familyMembers->first(fn ($m) => in_array($m->relationship, ['ayah', 'ibu']))?->id
+                            // Ayah diutamakan sebagai Kepala Keluarga (konvensi KK) kalau ada;
+                            // baru fallback ke Ibu, lalu ke anggota pertama kalau keduanya tidak ada.
+                            $headMemberId = $submission->familyMembers->firstWhere('relationship', 'ayah')?->id
+                                ?? $submission->familyMembers->firstWhere('relationship', 'ibu')?->id
                                 ?? $submission->familyMembers->first()?->id;
                         @endphp
                         @foreach ($submission->familyMembers as $member)
