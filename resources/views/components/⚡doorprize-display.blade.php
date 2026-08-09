@@ -90,48 +90,177 @@ new class extends Component
 };
 ?>
 
-<div class="relative flex min-h-screen flex-col overflow-hidden" wire:poll.700ms="poll" x-data="doorprizeDisplay()" x-init="init()">
+<div class="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-b from-red-950 via-red-800 to-red-950" wire:poll.700ms="poll" x-data="doorprizeDisplay()" x-init="init()">
     {{-- Dekorasi latar: bintik cahaya + sorot lembut, murni CSS --}}
     <div class="pointer-events-none absolute inset-0" style="background-image: radial-gradient(circle, rgba(255,255,255,.10) 1px, transparent 1px); background-size: 26px 26px;"></div>
     <div class="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-amber-400/20 blur-3xl"></div>
-    <div class="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-red-500/30 blur-3xl"></div>
+    <div class="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
+    <div class="pointer-events-none absolute left-1/2 top-1/3 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-400/10 blur-3xl"></div>
 
-    <button
-        @click="toggleSound"
-        class="fixed right-4 top-4 z-20 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-sm text-white/80 hover:bg-black/50"
-        x-text="soundEnabled ? '🔊' : '🔇 Aktifkan Suara'"
-    ></button>
+    {{-- Watermark angka "81" raksasa di belakang panggung --}}
+    <div class="pointer-events-none absolute inset-0 flex select-none items-center justify-center overflow-hidden">
+        <span class="font-black leading-none text-white/[0.05]" style="font-size: min(62vw, 620px);">81</span>
+    </div>
 
-    <div class="relative flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+    {{-- Kembang api ambient, murni CSS --}}
+    <div class="pointer-events-none absolute inset-0 overflow-hidden">
+        <span class="firework-spark" style="top:14%; left:12%; animation-delay: 0s;"></span>
+        <span class="firework-spark" style="top:22%; left:82%; animation-delay: 1.6s;"></span>
+        <span class="firework-spark" style="top:72%; left:8%; animation-delay: 3s;"></span>
+        <span class="firework-spark" style="top:66%; left:88%; animation-delay: 2.2s;"></span>
+        <span class="firework-spark" style="top:8%; left:50%; animation-delay: 0.9s;"></span>
+    </div>
+
+    {{-- Untaian bendera merah-putih (bunting) --}}
+    <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
+        <div class="relative flex flex-nowrap">
+            <div class="absolute inset-x-0 top-0 border-t-2 border-dashed border-white/30"></div>
+            @for ($i = 0; $i < 46; $i++)
+                <span class="bunting-flag {{ $i % 2 === 0 ? 'bunting-flag--red' : 'bunting-flag--white' }}" style="animation-delay: {{ $i * 0.05 }}s"></span>
+            @endfor
+        </div>
+    </div>
+
+    <div class="fixed right-4 top-4 z-20 flex flex-col items-end gap-2">
+        <button
+            @click="toggleFullscreen"
+            class="flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-sm text-white/80 hover:bg-black/50"
+        >
+            <x-icon name="expand" class="h-4 w-4" />
+            <span x-text="isFullscreen ? 'Keluar Layar Penuh' : 'Layar Penuh'"></span>
+        </button>
+        <button
+            @click="toggleSound"
+            class="flex items-center gap-2 rounded-full border border-white/20 bg-black/30 px-3 py-2 text-sm text-white/80 hover:bg-black/50"
+        >
+            <x-icon name="speaker" x-show="soundEnabled" class="h-4 w-4" />
+            <x-icon name="speaker-off" x-show="!soundEnabled" class="h-4 w-4" />
+            <span x-text="soundEnabled ? 'Suara Aktif' : 'Aktifkan Suara'"></span>
+        </button>
+    </div>
+
+    <div class="relative flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
         @if ($siteLogoUrl)
-            <img src="{{ $siteLogoUrl }}" alt="Logo" class="mb-3 h-16 w-auto object-contain drop-shadow-lg" style="filter: brightness(0) invert(1);">
+            <img src="{{ $siteLogoUrl }}" alt="Logo" class="mb-4 h-16 w-auto object-contain drop-shadow-lg" style="filter: brightness(0) invert(1);">
         @endif
-        <p class="text-sm font-semibold uppercase tracking-[0.3em] text-red-200">{{ $eventName ?: 'Belum ada acara aktif' }}</p>
-        <h1 class="mt-2 text-3xl font-black tracking-wide text-white drop-shadow-lg sm:text-5xl">🎉 UNDIAN DOORPRIZE 🎉</h1>
+
+        <div class="ribbon-banner">
+            <p class="text-sm font-semibold uppercase tracking-[0.3em] text-white">{{ $eventName ?: 'Belum ada acara aktif' }}</p>
+        </div>
+
+        <h1 class="mt-5 flex items-center justify-center gap-3 text-3xl font-black tracking-wide text-white drop-shadow-lg sm:text-5xl">
+            <x-icon name="sparkles" class="h-8 w-8 shrink-0 text-amber-300 sm:h-10 sm:w-10" />
+            UNDIAN DOORPRIZE
+            <x-icon name="sparkles" class="h-8 w-8 shrink-0 text-amber-300 sm:h-10 sm:w-10" />
+        </h1>
+        <p class="mt-2 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.45em] text-amber-200/90">
+            <span class="mini-flag"></span> Dirgahayu Republik Indonesia <span class="mini-flag"></span>
+        </p>
 
         <div
-            class="relative mt-10 w-full max-w-2xl rounded-3xl border-4 p-8 shadow-2xl backdrop-blur-sm transition-colors duration-500 sm:p-14"
-            :class="phase === 'revealed' ? 'border-emerald-300 bg-emerald-900/20 shadow-emerald-400/30' : 'border-amber-300 bg-white/10'"
+            class="medal-card relative mt-10 w-full max-w-2xl rounded-3xl border-4 p-8 shadow-2xl backdrop-blur-sm transition-colors duration-500 sm:p-14"
+            :class="phase === 'revealed' ? 'border-amber-300 bg-gradient-to-b from-amber-400/25 via-amber-500/10 to-transparent shadow-[0_0_80px_-10px_rgba(251,191,36,.55)]' : 'border-white/40 bg-white/10'"
             x-bind:style="phase === 'spinning' ? 'animation: doorprize-pulse 1s ease-in-out infinite' : ''"
         >
-            <p x-show="phase === 'idle'" class="text-base font-semibold uppercase tracking-widest text-red-200">🎁 Menunggu Diundi</p>
-            <p x-show="phase === 'spinning'" class="text-base font-semibold uppercase tracking-widest text-amber-200">🎰 Sedang Mengundi...</p>
+            <span class="mini-flag pointer-events-none absolute -left-3 -top-3 shadow-lg" style="transform: rotate(-14deg);"></span>
+            <span class="mini-flag pointer-events-none absolute -right-3 -top-3 shadow-lg" style="transform: rotate(14deg);"></span>
+
+            <p x-show="phase === 'idle'" class="flex items-center justify-center gap-2 text-base font-semibold uppercase tracking-widest text-red-100">
+                <x-icon name="gift" class="h-5 w-5" /> Menunggu Diundi
+            </p>
+            <p x-show="phase === 'spinning'" class="flex items-center justify-center gap-2 text-base font-semibold uppercase tracking-widest text-amber-200">
+                <x-icon name="sparkles" class="h-5 w-5" /> Sedang Mengundi...
+            </p>
             <p x-show="phase === 'suspense'" class="animate-pulse text-base font-semibold uppercase tracking-widest text-amber-200">Menentukan pemenang...</p>
-            <p x-show="phase === 'revealed'" class="text-base font-semibold uppercase tracking-widest text-emerald-300">🏆 Pemenang</p>
+            <p x-show="phase === 'revealed'" class="flex items-center justify-center gap-2 text-base font-semibold uppercase tracking-widest text-amber-200">
+                <img src="{{ asset('trophy.gif') }}" alt="" class="h-6 w-6" style="image-rendering: pixelated;"> Pemenang
+            </p>
 
             <div class="mt-5 font-mono text-6xl font-black tabular-nums text-white sm:text-8xl" x-text="displayNumber"></div>
             <div class="mt-3 min-h-[2.25rem] text-2xl font-bold text-amber-200 sm:text-4xl" x-text="displayName"></div>
-            <div class="mt-1 text-sm text-red-200" x-text="displayBlock"></div>
+            <div class="mt-1 text-sm text-red-100" x-text="displayBlock"></div>
         </div>
 
-        <div class="mt-6 min-h-[1.5rem] text-lg font-semibold text-amber-200" x-show="prizeName" x-text="prizeName ? ('🎁 Hadiah: ' + prizeName) : ''"></div>
-        <p class="mt-3 text-xs uppercase tracking-widest text-red-300/80">Sisa {{ $poolCount }} kepala keluarga belum menang</p>
+        <div class="mt-6 flex min-h-[1.5rem] items-center justify-center gap-2 text-lg font-semibold text-amber-200" x-show="prizeName">
+            <x-icon name="gift" class="h-5 w-5" x-show="prizeName" /> <span x-text="prizeName ? ('Hadiah: ' + prizeName) : ''"></span>
+        </div>
+        <div class="mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-black/25 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-red-100 backdrop-blur-sm">
+            <x-icon name="users" class="h-4 w-4" /> Sisa {{ $poolCount }} kepala keluarga belum menang
+        </div>
     </div>
 
     <style>
         @keyframes doorprize-pulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, .45); }
             50% { box-shadow: 0 0 0 18px rgba(252, 211, 77, 0); }
+        }
+
+        .bunting-flag {
+            width: 16px;
+            height: 24px;
+            margin: 0 1px;
+            clip-path: polygon(0 0, 100% 0, 50% 100%);
+            transform-origin: top center;
+            animation: bunting-sway 3.2s ease-in-out infinite;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, .25);
+        }
+        .bunting-flag--red { background: #dc2626; }
+        .bunting-flag--white { background: #fafafa; }
+        @keyframes bunting-sway {
+            0%, 100% { transform: rotate(-5deg); }
+            50% { transform: rotate(5deg); }
+        }
+
+        .firework-spark {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 9999px;
+            background: radial-gradient(circle, #fff 0%, #fbbf24 45%, transparent 75%);
+            animation: firework-burst 4.2s ease-out infinite;
+        }
+        @keyframes firework-burst {
+            0% { transform: scale(0); opacity: 0; box-shadow: 0 0 0 0 rgba(251, 191, 36, .65); }
+            14% { transform: scale(1); opacity: 1; }
+            42% { box-shadow: 0 0 0 55px rgba(251, 191, 36, 0); opacity: .45; }
+            60%, 100% { opacity: 0; transform: scale(1); box-shadow: 0 0 0 55px rgba(251, 191, 36, 0); }
+        }
+
+        .ribbon-banner {
+            position: relative;
+            display: inline-block;
+            padding: 8px 30px;
+            background: linear-gradient(135deg, #b91c1c, #7f1d1d);
+            border-top: 1px solid rgba(255, 255, 255, .25);
+            border-bottom: 1px solid rgba(0, 0, 0, .3);
+        }
+        .ribbon-banner::before, .ribbon-banner::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 14px;
+            background: inherit;
+        }
+        .ribbon-banner::before { left: -10px; clip-path: polygon(0 50%, 100% 0, 100% 100%); }
+        .ribbon-banner::after { right: -10px; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+
+        .mini-flag {
+            display: inline-block;
+            width: 22px;
+            height: 15px;
+            border-radius: 2px;
+            background: linear-gradient(to bottom, #dc2626 50%, #fafafa 50%);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+        }
+
+        .medal-card::before {
+            content: '';
+            position: absolute;
+            inset: -10px;
+            border-radius: inherit;
+            border: 2px dashed rgba(255, 255, 255, .25);
+            pointer-events: none;
         }
     </style>
 
@@ -149,11 +278,24 @@ new class extends Component
                 tickCounter: 0,
                 soundEnabled: false,
                 audioCtx: null,
+                isFullscreen: false,
 
                 init() {
                     this.prizeName = this.$wire.prizeName || '';
                     this.$watch('$wire.status', (value) => this.onStatusChange(value));
                     this.onStatusChange(this.$wire.status);
+
+                    document.addEventListener('fullscreenchange', () => {
+                        this.isFullscreen = !!document.fullscreenElement;
+                    });
+                },
+
+                toggleFullscreen() {
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen?.().catch(() => {});
+                    } else {
+                        document.exitFullscreen?.();
+                    }
                 },
 
                 toggleSound() {
@@ -300,7 +442,7 @@ new class extends Component
                     canvas.width = window.innerWidth;
                     canvas.height = window.innerHeight;
                     const ctx = canvas.getContext('2d');
-                    const colors = ['#fbbf24', '#f87171', '#ffffff', '#34d399', '#60a5fa'];
+                    const colors = ['#dc2626', '#ffffff', '#fbbf24', '#f87171', '#fde68a'];
                     const particles = Array.from({ length: 220 }, () => ({
                         x: Math.random() * canvas.width,
                         y: -20 - Math.random() * canvas.height * 0.4,
