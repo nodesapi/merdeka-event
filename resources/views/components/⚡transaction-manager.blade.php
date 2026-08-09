@@ -38,7 +38,7 @@ new class extends Component
         ]);
 
         $user = $this->resident_block
-            ? User::where('resident_block', 'like', '%' . $this->resident_block . '%')->first()
+            ? User::whereLike('resident_block', '%' . $this->resident_block . '%')->first()
             : null;
 
         // Gabungkan kategori ke keterangan agar tampil di daftar & ekspor.
@@ -91,10 +91,10 @@ new class extends Component
         if ($this->search !== '') {
             $term = '%' . $this->search . '%';
             $query->where(function ($q) use ($term) {
-                $q->where('description', 'like', $term)
-                    ->orWhere('resident_block', 'like', $term)
-                    ->orWhere('bank_name', 'like', $term)
-                    ->orWhere('account_number', 'like', $term);
+                $q->whereLike('description', $term)
+                    ->orWhereLike('resident_block', $term)
+                    ->orWhereLike('bank_name', $term)
+                    ->orWhereLike('account_number', $term);
             });
         }
 

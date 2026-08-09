@@ -162,10 +162,10 @@ new class extends Component
         if ($this->search !== '') {
             $term = '%' . $this->search . '%';
             $query->where(function ($q) use ($term) {
-                $q->where('head_of_family_name', 'like', $term)
-                    ->orWhere('resident_block', 'like', $term)
-                    ->orWhere('reference_code', 'like', $term)
-                    ->orWhereHas('familyMembers', fn ($mq) => $mq->where('name', 'like', $term));
+                $q->whereLike('head_of_family_name', $term)
+                    ->orWhereLike('resident_block', $term)
+                    ->orWhereLike('reference_code', $term)
+                    ->orWhereHas('familyMembers', fn ($mq) => $mq->whereLike('name', $term));
             });
         }
 

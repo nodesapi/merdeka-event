@@ -214,9 +214,9 @@ new class extends Component
         if ($this->search !== '') {
             $term = '%' . $this->search . '%';
             $query->where(function ($q) use ($term) {
-                $q->where('nama_item', 'like', $term)
-                    ->orWhere('pj', 'like', $term)
-                    ->orWhere('catatan', 'like', $term);
+                $q->whereLike('nama_item', $term)
+                    ->orWhereLike('pj', $term)
+                    ->orWhereLike('catatan', $term);
             });
         }
 

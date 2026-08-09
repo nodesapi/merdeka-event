@@ -137,9 +137,9 @@ new class extends Component
         if ($this->search !== '') {
             $term = '%' . $this->search . '%';
             $query->where(function ($q) use ($term) {
-                $q->where('name', 'like', $term)
-                    ->orWhere('username', 'like', $term)
-                    ->orWhere('email', 'like', $term);
+                $q->whereLike('name', $term)
+                    ->orWhereLike('username', $term)
+                    ->orWhereLike('email', $term);
             });
         }
 
