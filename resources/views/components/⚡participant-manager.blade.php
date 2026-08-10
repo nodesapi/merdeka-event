@@ -31,6 +31,7 @@ new class extends Component
 
     // Tambah tim (lomba grup): buat tim, lalu tambah anggota lintas keluarga
     public $new_team_name = '';
+    public $new_team_gender = '';
     public $selectedTeamId = '';
 
     // Kelompokkan peserta yang sudah daftar sendiri (pool "menunggu dikelompokkan") ke tim
@@ -140,20 +141,38 @@ new class extends Component
      */
     public function createTeam()
     {
-        $this->validate([
+        $data = $this->validate([
             'new_team_name' => 'nullable|string|max:255',
+            'new_team_gender' => 'required|in:L,P',
+        ], [
+            'new_team_gender.required' => 'Pilih kategori Putra/Putri untuk tim ini.',
         ]);
 
         $team = CompetitionTeam::create([
             'competition_id' => $this->competitionId,
             'team_name' => $this->new_team_name ?: null,
+            'gender_category' => $data['new_team_gender'],
             'round' => 1,
             'status' => 'active',
         ]);
 
         $this->selectedTeamId = $team->id;
-        $this->success_message = $team->display_name . ' berhasil dibuat. Sekarang tambahkan anggotanya.';
-        $this->reset('new_team_name');
+        $this->success_message = $team->display_name . ' (' . $team->gender_category_label . ') berhasil dibuat. Sekarang tambahkan anggotanya.';
+        $this->reset(['new_team_name', 'new_team_gender']);
+    }
+
+    /**
+     * Ubah kategori putra/putri tim (mis. salah pilih saat buat tim, atau melengkapi tim lama).
+     */
+    public function updateTeamGender(string $id, string $gender)
+    {
+        if (! in_array($gender, ['L', 'P'], true)) {
+            return;
+        }
+
+        $team = $this->team($id);
+        $team->update(['gender_category' => $gender]);
+        $this->success_message = $team->display_name . ' ditetapkan sebagai kategori ' . $team->gender_category_label . '.';
     }
 
     protected function selectedTeam(): CompetitionTeam
@@ -355,14 +374,21 @@ new class extends Component
     {
         $rank = (int) $rank;
         $team = $this->team($id);
+        $genderCategory = $team->gender_category;
 
+        // Satu pemegang tiap juara PER KATEGORI putra/putri — kosongkan pemegang lama di kategori yang sama saja.
         CompetitionTeam::where('competition_id', $this->competitionId)
             ->where('rank', $rank)
             ->where('id', '!=', $team->id)
+            ->when(
+                $genderCategory === null,
+                fn ($q) => $q->whereNull('gender_category'),
+                fn ($q) => $q->where('gender_category', $genderCategory),
+            )
             ->update(['rank' => null]);
 
         $team->update(['rank' => $rank, 'status' => 'active']);
-        $this->success_message = $team->display_name . ' ditetapkan sebagai Juara ' . $rank . '.';
+        $this->success_message = $team->display_name . ' ditetapkan sebagai Juara ' . $rank . ' (kategori ' . $team->gender_category_label . ').';
     }
 
     public function clearTeamRank(string $id)
@@ -464,8 +490,13 @@ new class extends Component
                 ->orderBy('name')
                 ->get();
 
+            $teamsByGender = $teams
+                ->groupBy(fn ($t) => $t->gender_category ?? 'none')
+                ->sortBy(fn ($group, $key) => match ($key) { 'L' => 0, 'P' => 1, default => 2 });
+
             return [
                 'teams' => $teams,
+                'teamsByGender' => $teamsByGender,
                 'unassigned' => $unassigned,
                 'participantsByCategory' => collect(),
                 'totalParticipants' => $teams->sum(fn ($t) => $t->members->count()) + $unassigned->count(),
@@ -686,13 +717,22 @@ new class extends Component
             </p>
 
             <form wire:submit.prevent="createTeam" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Tim</label>
                 <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
                     <div class="flex-1">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Tim</label>
                         <input type="text" wire:model="new_team_name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: Tim Blok A">
                         @error('new_team_name') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
-                    <button type="submit" class="shrink-0 px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm">Buat Tim</button>
+                    <div class="w-full sm:w-40">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1.5">Kategori</label>
+                        <select wire:model="new_team_gender" data-custom-select class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                            <option value="">— Pilih —</option>
+                            <option value="L">Putra</option>
+                            <option value="P">Putri</option>
+                        </select>
+                        @error('new_team_gender') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                    </div>
+                    <button type="submit" class="shrink-0 px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm sm:mt-[22px]">Buat Tim</button>
                 </div>
             </form>
 
@@ -784,71 +824,92 @@ new class extends Component
             @endforelse
         </div>
 
-        <!-- Daftar tim -->
-        @forelse ($teams as $team)
-            <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
-                <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                            <h4 class="font-semibold text-slate-900 truncate">{{ $team->display_name }}</h4>
-                            <span class="inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 font-semibold">Babak {{ $team->round }}{{ $team->round == $totalRounds ? ' (Final)' : '' }}</span>
-                            @if ($team->rank)
-                                <span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold">Juara {{ $team->rank }}</span>
-                            @elseif ($team->status === 'eliminated')
-                                <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold">Gugur</span>
-                            @else
-                                <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 font-semibold">Lolos</span>
-                            @endif
-                        </div>
-                        <p class="mt-1 text-xs text-slate-500">{{ $team->members->count() }} anggota</p>
+        <!-- Daftar tim, dikelompokkan per kategori Putra/Putri (fairness, mirip kategori umur) -->
+        @forelse ($teamsByGender as $groupTeams)
+            <div class="mb-6">
+                @if ($teamsByGender->count() > 1)
+                    <div class="mb-3 flex items-center gap-2">
+                        <span class="w-2 h-4 bg-red-600 rounded"></span>
+                        <h4 class="font-semibold text-slate-900">Kategori {{ $groupTeams->first()->gender_category_label }}</h4>
+                        <span class="text-xs px-2 py-0.5 bg-white text-slate-600 rounded border border-slate-200">{{ $groupTeams->count() }} tim</span>
                     </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <div class="inline-flex items-center gap-1.5">
-                            <button wire:click="promoteTeam('{{ $team->id }}')" class="inline-flex h-8 items-center rounded-md bg-red-600 px-2.5 text-xs font-medium text-white hover:bg-red-700" title="Naik ke babak berikutnya">Naik babak &rarr;</button>
-                            @if ($team->round > 1)
-                                <button wire:click="demoteTeam('{{ $team->id }}')" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 text-slate-500 hover:bg-slate-50" title="Turun babak">&larr;</button>
-                            @endif
+                @endif
+
+                @foreach ($groupTeams as $team)
+                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
+                        <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <h4 class="font-semibold text-slate-900 truncate">{{ $team->display_name }}</h4>
+                                    <span class="inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded {{ $team->gender_category ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-slate-100 text-slate-400' }} font-semibold">{{ $team->gender_category_label }}</span>
+                                    <span class="inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 font-semibold">Babak {{ $team->round }}{{ $team->round == $totalRounds ? ' (Final)' : '' }}</span>
+                                    @if ($team->rank)
+                                        <span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-semibold">Juara {{ $team->rank }}</span>
+                                    @elseif ($team->status === 'eliminated')
+                                        <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-semibold">Gugur</span>
+                                    @else
+                                        <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 font-semibold">Lolos</span>
+                                    @endif
+                                </div>
+                                <p class="mt-1 text-xs text-slate-500">{{ $team->members->count() }} anggota</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <div class="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2">
+                                    <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Kategori</span>
+                                    <button wire:click="updateTeamGender('{{ $team->id }}', 'L')" class="h-6 px-2 rounded-md border text-xs font-bold {{ $team->gender_category === 'L' ? 'bg-red-600 border-red-600 text-white' : 'border-slate-300 bg-white text-slate-500 hover:bg-red-50' }}">Putra</button>
+                                    <button wire:click="updateTeamGender('{{ $team->id }}', 'P')" class="h-6 px-2 rounded-md border text-xs font-bold {{ $team->gender_category === 'P' ? 'bg-red-600 border-red-600 text-white' : 'border-slate-300 bg-white text-slate-500 hover:bg-red-50' }}">Putri</button>
+                                </div>
+
+                                <span class="h-6 w-px bg-slate-200"></span>
+
+                                <div class="inline-flex items-center gap-1.5">
+                                    <button wire:click="promoteTeam('{{ $team->id }}')" class="inline-flex h-8 items-center rounded-md bg-red-600 px-2.5 text-xs font-medium text-white hover:bg-red-700" title="Naik ke babak berikutnya">Naik babak &rarr;</button>
+                                    @if ($team->round > 1)
+                                        <button wire:click="demoteTeam('{{ $team->id }}')" class="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 text-slate-500 hover:bg-slate-50" title="Turun babak">&larr;</button>
+                                    @endif
+                                </div>
+
+                                <span class="h-6 w-px bg-slate-200"></span>
+
+                                @if ($team->status === 'eliminated')
+                                    <button wire:click="reinstateTeam('{{ $team->id }}')" class="inline-flex h-8 w-24 items-center justify-center rounded-md border border-emerald-200 text-xs font-medium text-emerald-600 hover:bg-emerald-50">Aktifkan</button>
+                                @else
+                                    <button wire:click="eliminateTeam('{{ $team->id }}')" class="inline-flex h-8 w-24 items-center justify-center rounded-md border border-slate-300 text-xs font-medium text-slate-500 hover:bg-slate-50">Gugurkan</button>
+                                @endif
+
+                                <span class="h-6 w-px bg-slate-200"></span>
+
+                                <div class="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2">
+                                    <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Juara</span>
+                                    @foreach ([1, 2, 3] as $r)
+                                        <button wire:click="setTeamRank('{{ $team->id }}', {{ $r }})" class="h-6 w-6 rounded-md border text-xs font-bold {{ $team->rank === $r ? 'bg-amber-400 border-amber-400 text-white' : 'border-slate-300 bg-white text-slate-500 hover:bg-amber-50' }}" title="Tetapkan Juara {{ $r }}">{{ $r }}</button>
+                                    @endforeach
+                                    @if ($team->rank)
+                                        <button wire:click="clearTeamRank('{{ $team->id }}')" class="px-0.5 text-slate-400 hover:text-red-600" title="Hapus predikat juara">&times;</button>
+                                    @endif
+                                </div>
+
+                                <span class="h-6 w-px bg-slate-200"></span>
+
+                                <button wire:click="confirmDelete('{{ $team->id }}', 'tim ini beserta anggotanya', 'deleteTeam')" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+                            </div>
                         </div>
-
-                        <span class="h-6 w-px bg-slate-200"></span>
-
-                        @if ($team->status === 'eliminated')
-                            <button wire:click="reinstateTeam('{{ $team->id }}')" class="inline-flex h-8 w-24 items-center justify-center rounded-md border border-emerald-200 text-xs font-medium text-emerald-600 hover:bg-emerald-50">Aktifkan</button>
-                        @else
-                            <button wire:click="eliminateTeam('{{ $team->id }}')" class="inline-flex h-8 w-24 items-center justify-center rounded-md border border-slate-300 text-xs font-medium text-slate-500 hover:bg-slate-50">Gugurkan</button>
-                        @endif
-
-                        <span class="h-6 w-px bg-slate-200"></span>
-
-                        <div class="inline-flex h-8 items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2">
-                            <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Juara</span>
-                            @foreach ([1, 2, 3] as $r)
-                                <button wire:click="setTeamRank('{{ $team->id }}', {{ $r }})" class="h-6 w-6 rounded-md border text-xs font-bold {{ $team->rank === $r ? 'bg-amber-400 border-amber-400 text-white' : 'border-slate-300 bg-white text-slate-500 hover:bg-amber-50' }}" title="Tetapkan Juara {{ $r }}">{{ $r }}</button>
-                            @endforeach
-                            @if ($team->rank)
-                                <button wire:click="clearTeamRank('{{ $team->id }}')" class="px-0.5 text-slate-400 hover:text-red-600" title="Hapus predikat juara">&times;</button>
-                            @endif
+                        <div class="border-t border-slate-100 bg-slate-50/60 px-6 py-3">
+                            <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Anggota</p>
+                            <div class="flex flex-wrap gap-1.5">
+                                @forelse ($team->members as $member)
+                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
+                                        {{ $member->name }}{{ $member->age !== null ? ' · ' . $member->age . ' th' : '' }}
+                                        <button wire:click="unassignFromTeam('{{ $member->id }}')" class="text-slate-400 hover:text-amber-600" title="Kembalikan ke daftar menunggu dikelompokkan">&#8617;</button>
+                                        <button wire:click="confirmDelete('{{ $member->id }}', @js($member->name . ' dari tim ini'))" class="text-slate-400 hover:text-red-600" title="Hapus anggota">&times;</button>
+                                    </span>
+                                @empty
+                                    <span class="text-xs text-slate-400">Belum ada anggota. Tambahkan lewat form di atas.</span>
+                                @endforelse
+                            </div>
                         </div>
-
-                        <span class="h-6 w-px bg-slate-200"></span>
-
-                        <button wire:click="confirmDelete('{{ $team->id }}', 'tim ini beserta anggotanya', 'deleteTeam')" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
                     </div>
-                </div>
-                <div class="border-t border-slate-100 bg-slate-50/60 px-6 py-3">
-                    <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Anggota</p>
-                    <div class="flex flex-wrap gap-1.5">
-                        @forelse ($team->members as $member)
-                            <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
-                                {{ $member->name }}{{ $member->age !== null ? ' · ' . $member->age . ' th' : '' }}
-                                <button wire:click="unassignFromTeam('{{ $member->id }}')" class="text-slate-400 hover:text-amber-600" title="Kembalikan ke daftar menunggu dikelompokkan">&#8617;</button>
-                                <button wire:click="confirmDelete('{{ $member->id }}', @js($member->name . ' dari tim ini'))" class="text-slate-400 hover:text-red-600" title="Hapus anggota">&times;</button>
-                            </span>
-                        @empty
-                            <span class="text-xs text-slate-400">Belum ada anggota. Tambahkan lewat form di atas.</span>
-                        @endforelse
-                    </div>
-                </div>
+                @endforeach
             </div>
         @empty
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center text-slate-400 text-sm">

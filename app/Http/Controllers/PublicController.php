@@ -155,11 +155,23 @@ class PublicController extends Controller
                     ->orderBy('created_at');
             }]);
 
+            $teamsByGender = $competition->teams
+                ->groupBy(fn ($t) => $t->gender_category ?? 'none')
+                ->sortBy(fn ($group, $key) => match ($key) { 'L' => 0, 'P' => 1, default => 2 });
+
+            $winnerTeamsByGender = $competition->teams
+                ->whereNotNull('rank')
+                ->groupBy(fn ($t) => $t->gender_category ?? 'none')
+                ->sortBy(fn ($group, $key) => match ($key) { 'L' => 0, 'P' => 1, default => 2 })
+                ->map(fn ($group) => $group->sortBy('rank')->values());
+
             return view('public.competition-show', [
                 'event' => $competition->event,
                 'competition' => $competition,
                 'teams' => $competition->teams,
+                'teamsByGender' => $teamsByGender,
                 'winnerTeams' => $competition->teams->whereNotNull('rank')->sortBy('rank')->values(),
+                'winnerTeamsByGender' => $winnerTeamsByGender,
             ]);
         }
 

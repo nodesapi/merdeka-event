@@ -72,6 +72,7 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::view('/sponsor', 'admin.sponsor')->name('sponsor');
         Route::view('/panitia', 'admin.committee')->name('committee');
         Route::view('/lomba', 'admin.competitions')->name('competitions');
+        Route::get('/lomba/rekap-hadiah', [ReportController::class, 'prizes'])->name('prizes');
         Route::get('/peserta', function () {
             $event = \App\Models\Event::where('status', 'active')->latest('start_date')->first()
                 ?? \App\Models\Event::latest('start_date')->first();

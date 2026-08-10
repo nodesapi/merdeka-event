@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'competition_id',
     'team_name',
+    'gender_category',
     'round',
     'status',
     'rank',
@@ -34,5 +35,14 @@ class CompetitionTeam extends Model
     public function getDisplayNameAttribute(): string
     {
         return $this->team_name ?: 'Tim #' . substr($this->id, 0, 8);
+    }
+
+    public function getGenderCategoryLabelAttribute(): string
+    {
+        return match ($this->gender_category) {
+            'L' => 'Putra',
+            'P' => 'Putri',
+            default => 'Tanpa kategori',
+        };
     }
 }

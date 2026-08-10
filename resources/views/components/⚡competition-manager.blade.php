@@ -255,7 +255,10 @@ new class extends Component
         <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <h3 class="font-semibold text-base text-slate-900 mb-4 flex items-center justify-between">
                 <span>Daftar Lomba</span>
-                <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{{ $competitions->count() }} lomba</span>
+                <span class="flex items-center gap-2">
+                    <span class="text-xs px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{{ $competitions->count() }} lomba</span>
+                    <a href="{{ route('admin.prizes') }}" class="text-xs px-2.5 py-1 border border-red-200 bg-red-50 text-red-700 rounded-md hover:bg-red-100 font-medium">Rekap Hadiah</a>
+                </span>
             </h3>
             <div class="divide-y divide-slate-100">
                 @forelse ($competitions as $competition)

@@ -235,6 +235,93 @@ class ReportController extends Controller
     }
 
     /**
+     * Rekap kebutuhan hadiah: tiap lomba individu dipecah per kategori umur (masing-masing
+     * butuh Juara 1/2/3 sendiri), lomba grup dihitung 1 set juara per lomba (tanpa pecah kategori).
+     * Tanpa ?format = halaman biasa; ?format=csv|pdf = unduhan.
+     */
+    public function prizes(Request $request)
+    {
+        $event = $this->activeEvent();
+
+        $competitions = $event
+            ? $event->competitions()->orderBy('name')->get()
+            : collect();
+
+        $rows = $competitions->map(function (Competition $competition) {
+            if ($competition->isGroup()) {
+                $categories = $competition->teams
+                    ->groupBy(fn ($t) => $t->gender_category ?? 'none')
+                    ->sortBy(fn ($group, $key) => match ($key) { 'L' => 0, 'P' => 1, default => 2 })
+                    ->map(function ($group) {
+                        $label = $group->first()->gender_category;
+                        return [
+                            'label' => $label ? 'Tim ' . $group->first()->gender_category_label : 'Tim (tanpa kategori)',
+                            'count' => $group->count(),
+                        ];
+                    })
+                    ->values();
+            } else {
+                $categories = $competition->participants
+                    ->groupBy(fn ($p) => $p->age_category_key ?? 'none')
+                    ->sortBy(fn ($group, $key) => AgeCategory::order($key === 'none' ? null : $key))
+                    ->map(fn ($group) => [
+                        'label' => $group->first()->age_category_label,
+                        'count' => $group->count(),
+                    ])
+                    ->values();
+            }
+
+            return [
+                'competition' => $competition,
+                'categories' => $categories,
+            ];
+        });
+
+        $totalCategories = $rows->sum(fn ($row) => $row['categories']->count());
+
+        if ($request->query('format') === 'pdf') {
+            return view('admin.exports.prizes', [
+                'event' => $event,
+                'rows' => $rows,
+                'totalCategories' => $totalCategories,
+                'site' => \App\Models\SiteSetting::current(),
+                'generatedAt' => now(),
+            ]);
+        }
+
+        if ($request->query('format') === 'csv') {
+            $csvRows = collect();
+            foreach ($rows as $row) {
+                if ($row['categories']->isEmpty()) {
+                    $csvRows->push([$row['competition']->name, $row['competition']->isGroup() ? 'Grup' : 'Individu', 'Belum ada peserta', 0, 0]);
+                    continue;
+                }
+                foreach ($row['categories'] as $category) {
+                    $csvRows->push([
+                        $row['competition']->name,
+                        $row['competition']->isGroup() ? 'Grup' : 'Individu',
+                        $category['label'],
+                        $category['count'],
+                        3,
+                    ]);
+                }
+            }
+
+            return $this->streamCsv(
+                'rekap-hadiah-' . now()->format('Ymd-Hi') . '.csv',
+                ['Lomba', 'Tipe', 'Kategori', 'Jumlah Peserta/Tim', 'Estimasi Hadiah (Juara 1-3)'],
+                $csvRows,
+            );
+        }
+
+        return view('admin.prizes', [
+            'event' => $event,
+            'rows' => $rows,
+            'totalCategories' => $totalCategories,
+        ]);
+    }
+
+    /**
      * Export susunan acara sebagai CSV (Excel, bisa diedit & diupload ulang) atau PDF cetak (dengan logo).
      */
     public function schedule(Request $request)
