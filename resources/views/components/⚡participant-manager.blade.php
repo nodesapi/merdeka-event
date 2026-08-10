@@ -195,6 +195,11 @@ new class extends Component
         $participant = $this->participant($participantId);
         $team = CompetitionTeam::where('competition_id', $this->competitionId)->findOrFail($teamId);
 
+        if ($team->gender_category !== null && $participant->gender !== null && $participant->gender !== $team->gender_category) {
+            $this->addError('assign_' . $participantId, $participant->name . ' (' . $participant->gender_label . ') tidak sesuai kategori ' . $team->gender_category_label . ' pada ' . $team->display_name . '.');
+            return;
+        }
+
         if ($this->maxTeamSize !== null && $team->members()->count() >= $this->maxTeamSize) {
             $this->addError('assign_' . $participantId, $team->display_name . ' sudah mencapai maksimal ' . $this->maxTeamSize . ' anggota.');
             return;
@@ -258,6 +263,11 @@ new class extends Component
 
         if (! $competition->isAgeEligible($age)) {
             $this->addError('team_member_registration_number', 'Umur ' . $member->name . ' tidak sesuai kategori lomba ini (' . $competition->age_limit_label . ').');
+            return;
+        }
+
+        if ($team->gender_category !== null && $member->gender !== null && $member->gender !== $team->gender_category) {
+            $this->addError('team_member_registration_number', $member->name . ' (' . $member->gender_label . ') tidak sesuai kategori ' . $team->gender_category_label . ' pada ' . $team->display_name . '.');
             return;
         }
 
@@ -486,7 +496,7 @@ new class extends Component
 
             $unassigned = CompetitionParticipant::where('competition_id', $this->competitionId)
                 ->whereNull('competition_team_id')
-                ->with('familyMember:id,registration_number')
+                ->with('familyMember:id,registration_number,gender')
                 ->orderBy('name')
                 ->get();
 
@@ -494,10 +504,15 @@ new class extends Component
                 ->groupBy(fn ($t) => $t->gender_category ?? 'none')
                 ->sortBy(fn ($group, $key) => match ($key) { 'L' => 0, 'P' => 1, default => 2 });
 
+            $unassignedByGender = $unassigned
+                ->groupBy(fn ($p) => $p->gender ?? 'none')
+                ->sortBy(fn ($group, $key) => match ($key) { 'L' => 0, 'P' => 1, default => 2 });
+
             return [
                 'teams' => $teams,
                 'teamsByGender' => $teamsByGender,
                 'unassigned' => $unassigned,
+                'unassignedByGender' => $unassignedByGender,
                 'participantsByCategory' => collect(),
                 'totalParticipants' => $teams->sum(fn ($t) => $t->members->count()) + $unassigned->count(),
             ];
@@ -742,7 +757,7 @@ new class extends Component
                     <select wire:model="selectedTeamId" data-custom-select class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
                         <option value="">— Pilih tim —</option>
                         @foreach ($teams as $t)
-                            <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->members->count() }} anggota)</option>
+                            <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->gender_category_label }}, {{ $t->members->count() }} anggota)</option>
                         @endforeach
                     </select>
                     @error('selectedTeamId') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
@@ -794,31 +809,45 @@ new class extends Component
                 <h4 class="font-semibold text-slate-900">Menunggu Dikelompokkan</h4>
                 <span class="text-xs px-2 py-0.5 bg-white text-slate-600 rounded border border-slate-200">{{ $unassigned->count() }} peserta</span>
             </div>
-            @forelse ($unassigned as $p)
-                <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100 last:border-b-0">
-                    <div class="min-w-0">
-                        <div class="font-medium text-slate-900">{{ $p->name }}{{ $p->age !== null ? ' · ' . $p->age . ' th' : '' }}</div>
-                        <div class="mt-0.5 text-[11px] text-slate-400">
-                            @if ($p->familyMember?->registration_number)
-                                No. Daftar: <span class="font-semibold text-slate-500">{{ $p->familyMember->registration_number }}</span>
-                            @else
-                                Peserta manual
-                            @endif
-                            @if ($p->resident_block) · Blok {{ $p->resident_block }} @endif
+            @forelse ($unassignedByGender as $genderGroup)
+                @if ($unassignedByGender->count() > 1)
+                    <div class="flex items-center gap-2 px-6 py-2 bg-slate-50/60 border-b border-slate-100">
+                        <span class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $genderGroup->first()->gender_label ?? 'Gender tidak diketahui' }}</span>
+                        <span class="text-xs px-2 py-0.5 bg-white text-slate-600 rounded border border-slate-200">{{ $genderGroup->count() }} peserta</span>
+                    </div>
+                @endif
+                @foreach ($genderGroup as $p)
+                    <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100 last:border-b-0">
+                        <div class="min-w-0">
+                            <div class="font-medium text-slate-900">
+                                {{ $p->name }}{{ $p->age !== null ? ' · ' . $p->age . ' th' : '' }}
+                                @if ($p->gender_label)
+                                    <span class="ml-1 text-[10px] font-bold uppercase tracking-wide {{ $p->gender === 'L' ? 'text-blue-600' : 'text-pink-600' }}">{{ $p->gender_label }}</span>
+                                @endif
+                            </div>
+                            <div class="mt-0.5 text-[11px] text-slate-400">
+                                @if ($p->familyMember?->registration_number)
+                                    No. Daftar: <span class="font-semibold text-slate-500">{{ $p->familyMember->registration_number }}</span>
+                                @else
+                                    Peserta manual
+                                @endif
+                                @if ($p->resident_block) · Blok {{ $p->resident_block }} @endif
+                            </div>
                         </div>
+                        <div class="flex items-center gap-2">
+                            <select wire:model="assignTeamSelection.{{ $p->id }}" data-custom-select class="w-48 px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                                <option value="">— Pilih tim —</option>
+                                @foreach ($teams as $t)
+                                    @continue($p->gender !== null && $t->gender_category !== null && $p->gender !== $t->gender_category)
+                                    <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->members->count() }} anggota)</option>
+                                @endforeach
+                            </select>
+                            <button wire:click="assignToTeam('{{ $p->id }}')" class="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-medium shadow-sm">Masukkan ke Tim</button>
+                            <button wire:click="confirmDelete('{{ $p->id }}', 'peserta ini')" class="shrink-0 px-3 py-2 border border-red-200 text-red-600 rounded-md text-xs font-medium hover:bg-red-50">Hapus</button>
+                        </div>
+                        @error('assign_' . $p->id) <div class="w-full text-xs text-red-600">{{ $message }}</div> @enderror
                     </div>
-                    <div class="flex items-center gap-2">
-                        <select wire:model="assignTeamSelection.{{ $p->id }}" data-custom-select class="w-48 px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
-                            <option value="">— Pilih tim —</option>
-                            @foreach ($teams as $t)
-                                <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->members->count() }} anggota)</option>
-                            @endforeach
-                        </select>
-                        <button wire:click="assignToTeam('{{ $p->id }}')" class="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-medium shadow-sm">Masukkan ke Tim</button>
-                        <button wire:click="confirmDelete('{{ $p->id }}', 'peserta ini')" class="shrink-0 px-3 py-2 border border-red-200 text-red-600 rounded-md text-xs font-medium hover:bg-red-50">Hapus</button>
-                    </div>
-                    @error('assign_' . $p->id) <div class="w-full text-xs text-red-600">{{ $message }}</div> @enderror
-                </div>
+                @endforeach
             @empty
                 <div class="p-6 text-center text-slate-400 text-sm">Belum ada peserta yang menunggu dikelompokkan.</div>
             @endforelse
