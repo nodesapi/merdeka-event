@@ -757,7 +757,8 @@ new class extends Component
                     <select wire:model="selectedTeamId" data-custom-select class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
                         <option value="">— Pilih tim —</option>
                         @foreach ($teams as $t)
-                            <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->gender_category_label }}, {{ $t->members->count() }} anggota)</option>
+                            @php $isFull = $maxTeamSize !== null && $t->members->count() >= $maxTeamSize; @endphp
+                            <option value="{{ $t->id }}" @disabled($isFull)>{{ $t->display_name }} ({{ $t->gender_category_label }}, {{ $t->members->count() }}{{ $maxTeamSize ? '/' . $maxTeamSize : '' }} anggota){{ $isFull ? ' — PENUH' : '' }}</option>
                         @endforeach
                     </select>
                     @error('selectedTeamId') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
@@ -839,7 +840,8 @@ new class extends Component
                                 <option value="">— Pilih tim —</option>
                                 @foreach ($teams as $t)
                                     @continue($p->gender !== null && $t->gender_category !== null && $p->gender !== $t->gender_category)
-                                    <option value="{{ $t->id }}">{{ $t->display_name }} ({{ $t->members->count() }} anggota)</option>
+                                    @php $isFull = $maxTeamSize !== null && $t->members->count() >= $maxTeamSize; @endphp
+                                    <option value="{{ $t->id }}" @disabled($isFull)>{{ $t->display_name }} ({{ $t->members->count() }}{{ $maxTeamSize ? '/' . $maxTeamSize : '' }} anggota){{ $isFull ? ' — PENUH' : '' }}</option>
                                 @endforeach
                             </select>
                             <button wire:click="assignToTeam('{{ $p->id }}')" class="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-medium shadow-sm">Masukkan ke Tim</button>
