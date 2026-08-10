@@ -16,9 +16,12 @@
         .summary { display: flex; gap: 24px; margin: 0 0 18px; }
         .summary div { color: #334155; }
         .summary strong { display: block; font-size: 18px; color: #111827; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 22px; }
+        table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 22px; }
         th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
         th { background: #f1f5f9; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #475569; }
+        th:nth-child(1), td:nth-child(1) { width: 50%; }
+        th:nth-child(2), td:nth-child(2) { width: 25%; }
+        th:nth-child(3), td:nth-child(3) { width: 25%; }
         td.num, th.num { text-align: center; white-space: nowrap; }
         .lomba-title { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
         .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; background: #eef2f7; color: #475569; }

@@ -59,12 +59,12 @@
                     <p class="px-6 py-4 text-sm text-slate-400">Belum ada peserta{{ $competition->isGroup() ? '/tim' : '' }} terdaftar.</p>
                 @else
                     <div class="overflow-x-auto">
-                        <table class="w-full min-w-[520px] text-sm">
+                        <table class="w-full min-w-[520px] table-fixed text-sm">
                             <thead>
                                 <tr class="border-b border-slate-100 bg-slate-50/60 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                                    <th class="px-6 py-2.5">Kategori</th>
-                                    <th class="px-6 py-2.5">{{ $competition->isGroup() ? 'Jumlah Tim' : 'Jumlah Peserta' }}</th>
-                                    <th class="px-6 py-2.5">Estimasi Hadiah</th>
+                                    <th class="w-1/2 px-6 py-2.5">Kategori</th>
+                                    <th class="w-1/4 px-6 py-2.5">{{ $competition->isGroup() ? 'Jumlah Tim' : 'Jumlah Peserta' }}</th>
+                                    <th class="w-1/4 px-6 py-2.5">Estimasi Hadiah</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
