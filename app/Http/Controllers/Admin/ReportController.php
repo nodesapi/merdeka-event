@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BazaarSubmission;
 use App\Models\Competition;
 use App\Models\CompetitionParticipant;
+use App\Models\CompetitionTeam;
 use App\Models\Event;
 use App\Models\EventSchedule;
 use App\Models\FamilySubmission;
@@ -174,7 +175,9 @@ class ReportController extends Controller
     }
 
     /**
-     * Export daftar peserta satu lomba (dikelompokkan per kategori umur) sebagai CSV (Excel) atau PDF cetak.
+     * Export daftar peserta satu lomba sebagai CSV (Excel) atau PDF cetak.
+     * Lomba individu: dikelompokkan per kategori umur. Lomba grup: dikelompokkan per tim
+     * (dan kategori Putra/Putri tim), dengan status/babak/juara TIM (bukan tiap orang).
      */
     public function participants(Request $request)
     {
@@ -186,6 +189,10 @@ class ReportController extends Controller
             : null;
 
         abort_unless($competition, 404, 'Lomba tidak ditemukan.');
+
+        if ($competition->isGroup()) {
+            return $this->exportGroupParticipants($request, $event, $competition);
+        }
 
         $participants = CompetitionParticipant::where('competition_id', $competition->id)
             ->with('familyMember:id,registration_number')
@@ -230,6 +237,93 @@ class ReportController extends Controller
         return $this->streamCsv(
             'peserta-' . $competition->slug . '-' . now()->format('Ymd-Hi') . '.csv',
             ['No Daftar', 'Nama / Regu', 'Kategori Umur', 'Umur', 'Babak', 'Status', 'Blok', 'No HP'],
+            $rows,
+        );
+    }
+
+    /**
+     * Export peserta lomba GRUP: tim + anggotanya, dikelompokkan per kategori Putra/Putri,
+     * lalu daftar peserta yang belum masuk tim (menunggu dikelompokkan) terpisah di akhir.
+     */
+    protected function exportGroupParticipants(Request $request, ?Event $event, Competition $competition)
+    {
+        $teams = CompetitionTeam::where('competition_id', $competition->id)
+            ->with(['members' => fn ($q) => $q->with('familyMember:id,registration_number')->orderBy('name')])
+            ->orderByDesc('round')
+            ->orderBy('rank')
+            ->orderBy('created_at')
+            ->get();
+
+        $teamsByGender = $teams
+            ->groupBy(fn ($t) => $t->gender_category ?? 'none')
+            ->sortBy(fn ($group, $key) => match ($key) { 'L' => 0, 'P' => 1, default => 2 });
+
+        $unassigned = CompetitionParticipant::where('competition_id', $competition->id)
+            ->whereNull('competition_team_id')
+            ->with('familyMember:id,registration_number')
+            ->orderBy('name')
+            ->get();
+
+        $totalParticipants = $teams->sum(fn ($t) => $t->members->count()) + $unassigned->count();
+
+        if ($request->query('format') === 'pdf') {
+            return view('admin.exports.participants-group', [
+                'event' => $event,
+                'competition' => $competition,
+                'teamsByGender' => $teamsByGender,
+                'unassigned' => $unassigned,
+                'totalTeams' => $teams->count(),
+                'totalParticipants' => $totalParticipants,
+                'site' => \App\Models\SiteSetting::current(),
+                'generatedAt' => now(),
+            ]);
+        }
+
+        $teamStatusOf = fn (CompetitionTeam $t) => $t->rank
+            ? 'Juara ' . $t->rank
+            : ($t->status === 'eliminated' ? 'Gugur' : 'Lolos');
+
+        $rows = collect();
+        foreach ($teamsByGender as $group) {
+            foreach ($group as $team) {
+                $babak = 'Babak ' . $team->round . ($team->round == $competition->total_rounds ? ' (Final)' : '');
+                $status = $teamStatusOf($team);
+
+                if ($team->members->isEmpty()) {
+                    $rows->push(['-', '(belum ada anggota)', $team->display_name, $team->gender_category_label, $babak, $status, null, null]);
+                    continue;
+                }
+
+                foreach ($team->members as $m) {
+                    $rows->push([
+                        $m->familyMember?->registration_number ?: '-',
+                        $m->name,
+                        $team->display_name,
+                        $team->gender_category_label,
+                        $babak,
+                        $status,
+                        $m->resident_block,
+                        $m->phone_number,
+                    ]);
+                }
+            }
+        }
+        foreach ($unassigned as $p) {
+            $rows->push([
+                $p->familyMember?->registration_number ?: '-',
+                $p->name,
+                '— Menunggu Dikelompokkan —',
+                '-',
+                '-',
+                '-',
+                $p->resident_block,
+                $p->phone_number,
+            ]);
+        }
+
+        return $this->streamCsv(
+            'peserta-' . $competition->slug . '-' . now()->format('Ymd-Hi') . '.csv',
+            ['No Daftar', 'Nama Anggota', 'Nama Tim', 'Kategori Tim', 'Babak', 'Status Tim', 'Blok', 'No HP'],
             $rows,
         );
     }
