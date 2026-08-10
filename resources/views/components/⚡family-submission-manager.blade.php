@@ -48,13 +48,24 @@ new class extends Component
             return;
         }
 
+        $memberIds = $submission->familyMembers()->pluck('id');
+
+        // Lomba yang sudah diikuti anggota keluarga ini ikut dibatalkan — keluarga ini
+        // sudah ditolak jadi tidak sah lagi terdaftar sebagai peserta lomba manapun.
+        // FamilyMember-nya sendiri TIDAK dihapus (cukup disembunyikan lewat filter status
+        // 'rejected' di Data Warga), supaya kalau nanti di-verifikasi ulang, keikutsertaan
+        // lombanya otomatis tercatat lagi (approveAndRecord() pakai firstOrCreate).
+        $deletedParticipations = CompetitionParticipant::whereIn('family_member_id', $memberIds)->delete();
+
         $submission->update([
             'status' => 'rejected',
             'admin_notes' => $this->reviewNotes,
             'verified_at' => null,
         ]);
 
-        $this->successMessage = 'Form warga ditandai ditolak. Catatan panitia sudah disimpan.';
+        $this->successMessage = 'Form warga ditandai ditolak.'
+            . ($deletedParticipations > 0 ? ' ' . $deletedParticipations . ' keikutsertaan lomba ikut dibatalkan.' : '')
+            . ' Catatan panitia sudah disimpan.';
     }
 
     public function dismissAlert(): void
