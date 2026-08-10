@@ -112,12 +112,15 @@
                 </section>
 
                 <section class="merdeka-card overflow-hidden p-5 sm:p-6">
-                    <div class="flex items-center gap-3">
-                        <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
-                        <div>
-                            <h2 class="text-lg font-black text-stone-900">3. Pilih Lomba</h2>
-                            <p class="text-sm text-stone-500">Centang lomba yang ingin diikuti (boleh lebih dari satu).</p>
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="h-7 w-1.5 rounded-full bg-red-600"></span>
+                            <div>
+                                <h2 class="text-lg font-black text-stone-900">3. Pilih Lomba</h2>
+                                <p class="text-sm text-stone-500">Centang lomba yang ingin diikuti (boleh lebih dari satu).</p>
+                            </div>
                         </div>
+                        <button type="button" data-select-all-btn class="shrink-0 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700 hover:bg-red-100">Pilih Semua yang Bisa Diikuti</button>
                     </div>
 
                     @error('competition_ids') <p class="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-700">{{ $message }}</p> @enderror
@@ -164,6 +167,7 @@
                 const submitBtn = root.querySelector('[data-submit-btn]');
                 const selectedCount = root.querySelector('[data-selected-count]');
                 const noAge = root.querySelector('[data-no-age]');
+                const selectAllBtn = root.querySelector('[data-select-all-btn]');
 
                 const showError = (msg) => {
                     lookupError.textContent = msg;
@@ -253,6 +257,13 @@
                         lookupBtn.textContent = 'Cari Nama';
                     }
                 };
+
+                selectAllBtn.addEventListener('click', () => {
+                    list.querySelectorAll('[data-competition-checkbox]:not(:disabled)').forEach((cb) => {
+                        cb.checked = true;
+                    });
+                    updateCount();
+                });
 
                 lookupBtn.addEventListener('click', doLookup);
                 input.addEventListener('keydown', (e) => {
