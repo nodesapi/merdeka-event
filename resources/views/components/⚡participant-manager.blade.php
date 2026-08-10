@@ -408,8 +408,13 @@ new class extends Component
 
     public function deleteTeam(string $id)
     {
-        $this->team($id)->delete();
-        $this->success_message = 'Tim dihapus.';
+        $team = $this->team($id);
+
+        // Lepas anggotanya dulu (bukan hapus) — kolom FK cascade-delete kalau timnya langsung dihapus.
+        CompetitionParticipant::where('competition_team_id', $team->id)->update(['competition_team_id' => null]);
+
+        $team->delete();
+        $this->success_message = 'Tim dihapus. Anggotanya dikembalikan ke daftar menunggu dikelompokkan.';
     }
 
     public function promote(string $id)
@@ -922,7 +927,7 @@ new class extends Component
 
                                 <span class="h-6 w-px bg-slate-200"></span>
 
-                                <button wire:click="confirmDelete('{{ $team->id }}', 'tim ini beserta anggotanya', 'deleteTeam')" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
+                                <button wire:click="confirmDelete('{{ $team->id }}', 'tim ini (anggotanya akan dikembalikan ke Menunggu Dikelompokkan, bukan ikut terhapus)', 'deleteTeam')" class="inline-flex h-8 items-center rounded-md border border-red-200 px-2.5 text-xs font-medium text-red-600 hover:bg-red-50">Hapus</button>
                             </div>
                         </div>
                         <div class="border-t border-slate-100 bg-slate-50/60 px-6 py-3">
@@ -931,8 +936,7 @@ new class extends Component
                                 @forelse ($team->members as $member)
                                     <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
                                         {{ $member->name }}{{ $member->age !== null ? ' · ' . $member->age . ' th' : '' }}
-                                        <button wire:click="unassignFromTeam('{{ $member->id }}')" class="text-slate-400 hover:text-amber-600" title="Kembalikan ke daftar menunggu dikelompokkan">&#8617;</button>
-                                        <button wire:click="confirmDelete('{{ $member->id }}', @js($member->name . ' dari tim ini'))" class="text-slate-400 hover:text-red-600" title="Hapus anggota">&times;</button>
+                                        <button wire:click="unassignFromTeam('{{ $member->id }}')" class="text-slate-400 hover:text-amber-600" title="Keluarkan dari tim (tetap muncul di Menunggu Dikelompokkan)"><x-icon name="arrow-uturn-left" class="h-3.5 w-3.5" /></button>
                                     </span>
                                 @empty
                                     <span class="text-xs text-slate-400">Belum ada anggota. Tambahkan lewat form di atas.</span>
