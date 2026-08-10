@@ -4,25 +4,22 @@ namespace App\Support;
 
 /**
  * Pengelompokan umur untuk keadilan (fairness) lomba.
- * Bracket: 1-3, 4-6, 7-9, 10-12, 13-15, 16-19, 20+.
+ * Bracket: Balita (1-4), Anak (5-8), Remaja (9-15), Dewasa (16+).
  */
 class AgeCategory
 {
     /**
-     * Daftar bracket: [key, label, min, max]. max null = tak terbatas (20+).
+     * Daftar bracket: [key, label, min, max]. max null = tak terbatas (Dewasa).
      *
      * @return array<int, array{key:string,label:string,min:int,max:?int}>
      */
     public static function brackets(): array
     {
         return [
-            ['key' => '1-3', 'label' => '1–3 tahun', 'min' => 0, 'max' => 3],
-            ['key' => '4-6', 'label' => '4–6 tahun', 'min' => 4, 'max' => 6],
-            ['key' => '7-9', 'label' => '7–9 tahun', 'min' => 7, 'max' => 9],
-            ['key' => '10-12', 'label' => '10–12 tahun', 'min' => 10, 'max' => 12],
-            ['key' => '13-15', 'label' => '13–15 tahun', 'min' => 13, 'max' => 15],
-            ['key' => '16-19', 'label' => '16–19 tahun', 'min' => 16, 'max' => 19],
-            ['key' => '20+', 'label' => '20 tahun ke atas', 'min' => 20, 'max' => null],
+            ['key' => 'balita', 'label' => 'Balita (1–4 tahun)', 'min' => 0, 'max' => 4],
+            ['key' => 'anak', 'label' => 'Anak (5–8 tahun)', 'min' => 5, 'max' => 8],
+            ['key' => 'remaja', 'label' => 'Remaja (9–15 tahun)', 'min' => 9, 'max' => 15],
+            ['key' => 'dewasa', 'label' => 'Dewasa (16 tahun ke atas)', 'min' => 16, 'max' => null],
         ];
     }
 
@@ -41,7 +38,7 @@ class AgeCategory
             }
         }
 
-        return '20+';
+        return 'dewasa';
     }
 
     /**
@@ -59,7 +56,7 @@ class AgeCategory
             }
         }
 
-        return '20 tahun ke atas';
+        return 'Dewasa (16 tahun ke atas)';
     }
 
     /**
