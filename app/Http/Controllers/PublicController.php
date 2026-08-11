@@ -180,13 +180,13 @@ class PublicController extends Controller
         }]);
 
         $participantsByCategory = $competition->participants
-            ->groupBy(fn ($p) => $p->age_category_key ?? 'none')
-            ->sortBy(fn ($group, $key) => AgeCategory::order($key === 'none' ? null : $key));
+            ->groupBy(fn ($p) => $p->display_category_key)
+            ->sortBy(fn ($group, $key) => AgeCategory::orderForDisplayKey($key));
 
         $winnersByCategory = $competition->participants
             ->whereNotNull('rank')
-            ->groupBy(fn ($p) => $p->age_category_key ?? 'none')
-            ->sortBy(fn ($group, $key) => AgeCategory::order($key === 'none' ? null : $key))
+            ->groupBy(fn ($p) => $p->display_category_key)
+            ->sortBy(fn ($group, $key) => AgeCategory::orderForDisplayKey($key))
             ->map(fn ($group) => $group->sortBy('rank')->values());
 
         return view('public.competition-show', [

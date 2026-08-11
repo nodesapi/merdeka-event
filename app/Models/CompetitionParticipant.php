@@ -68,4 +68,30 @@ class CompetitionParticipant extends Model
             default => null,
         };
     }
+
+    /**
+     * Key kategori untuk pengelompokan tampilan/juara. Sama seperti age_category_key,
+     * kecuali kategori Dewasa yang dipecah lagi per gender (fairness Putra vs Putri).
+     */
+    public function getDisplayCategoryKeyAttribute(): string
+    {
+        $ageKey = $this->age_category_key ?? 'none';
+
+        return $ageKey === 'dewasa' ? 'dewasa_' . ($this->gender ?? 'none') : $ageKey;
+    }
+
+    public function getDisplayCategoryLabelAttribute(): string
+    {
+        if ($this->age_category_key !== 'dewasa') {
+            return $this->age_category_label;
+        }
+
+        $genderSuffix = match ($this->gender) {
+            'L' => 'Putra',
+            'P' => 'Putri',
+            default => 'Tanpa Data Gender',
+        };
+
+        return $this->age_category_label . ' — ' . $genderSuffix;
+    }
 }

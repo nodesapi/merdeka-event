@@ -195,13 +195,13 @@ class ReportController extends Controller
         }
 
         $participants = CompetitionParticipant::where('competition_id', $competition->id)
-            ->with('familyMember:id,registration_number')
+            ->with('familyMember:id,registration_number,gender')
             ->orderBy('name')
             ->get();
 
         $byCategory = $participants
-            ->groupBy(fn ($p) => $p->age_category_key ?? 'none')
-            ->sortBy(fn ($group, $key) => AgeCategory::order($key === 'none' ? null : $key));
+            ->groupBy(fn ($p) => $p->display_category_key)
+            ->sortBy(fn ($group, $key) => AgeCategory::orderForDisplayKey($key));
 
         if ($request->query('format') === 'pdf') {
             return view('admin.exports.participants', [
@@ -224,7 +224,7 @@ class ReportController extends Controller
                 $rows->push([
                     $p->familyMember?->registration_number ?: '-',
                     $p->name,
-                    $p->age_category_label,
+                    $p->display_category_label,
                     $p->age,
                     'Babak ' . $p->round . ($p->round == $competition->total_rounds ? ' (Final)' : ''),
                     $statusOf($p),
@@ -356,10 +356,10 @@ class ReportController extends Controller
                     ->values();
             } else {
                 $categories = $competition->participants
-                    ->groupBy(fn ($p) => $p->age_category_key ?? 'none')
-                    ->sortBy(fn ($group, $key) => AgeCategory::order($key === 'none' ? null : $key))
+                    ->groupBy(fn ($p) => $p->display_category_key)
+                    ->sortBy(fn ($group, $key) => AgeCategory::orderForDisplayKey($key))
                     ->map(fn ($group) => [
-                        'label' => $group->first()->age_category_label,
+                        'label' => $group->first()->display_category_label,
                         'count' => $group->count(),
                     ])
                     ->values();

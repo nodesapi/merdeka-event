@@ -59,7 +59,7 @@
         <tbody>
             @forelse ($byCategory as $group)
                 <tr class="cat">
-                    <td colspan="7">Kategori {{ $group->first()->age_category_label }} · {{ $group->count() }} peserta</td>
+                    <td colspan="7">Kategori {{ $group->first()->display_category_label }} · {{ $group->count() }} peserta</td>
                 </tr>
                 @foreach ($group as $p)
                     <tr>

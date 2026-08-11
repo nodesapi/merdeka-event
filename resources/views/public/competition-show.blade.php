@@ -138,7 +138,7 @@
             @foreach ($winnersByCategory as $catWinners)
                 <div class="mt-4">
                     @if ($winnersByCategory->count() > 1)
-                        <h3 class="mb-2 flex items-center gap-2 text-sm font-bold text-stone-600"><span class="h-4 w-1.5 rounded-full bg-red-600"></span>Kategori {{ $catWinners->first()->age_category_label }}</h3>
+                        <h3 class="mb-2 flex items-center gap-2 text-sm font-bold text-stone-600"><span class="h-4 w-1.5 rounded-full bg-red-600"></span>Kategori {{ $catWinners->first()->display_category_label }}</h3>
                     @endif
                     <div class="grid gap-3 sm:grid-cols-3">
                         @foreach ($catWinners as $winner)
@@ -165,7 +165,7 @@
                 {{-- Category header --}}
                 <div class="flex items-center gap-2.5 border-b border-stone-100 bg-stone-50 px-4 py-3 sm:px-5">
                     <span class="h-5 w-1.5 rounded-full bg-red-600"></span>
-                    <h3 class="font-extrabold text-stone-900">Kategori {{ $participants->first()->age_category_label }}</h3>
+                    <h3 class="font-extrabold text-stone-900">Kategori {{ $participants->first()->display_category_label }}</h3>
                     <span class="rounded-full bg-white px-2.5 py-0.5 text-[11px] font-bold text-stone-600 ring-1 ring-stone-200">{{ $participants->count() }} peserta</span>
                 </div>
 

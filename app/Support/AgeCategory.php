@@ -72,4 +72,22 @@ class AgeCategory
 
         return 99;
     }
+
+    /**
+     * Urutan sort untuk display key komposit (mis. "dewasa_L", "dewasa_P" — kategori
+     * Dewasa dipecah Putra/Putri demi keadilan). Base category tetap urut seperti
+     * order(), gender jadi urutan sekunder (L sebelum P, tanpa data terakhir).
+     */
+    public static function orderForDisplayKey(string $key): int
+    {
+        [$base, $gender] = array_pad(explode('_', $key, 2), 2, null);
+
+        $genderOrder = match ($gender) {
+            'L' => 0,
+            'P' => 1,
+            default => $gender === null ? 0 : 2,
+        };
+
+        return self::order($base === 'none' ? null : $base) * 10 + $genderOrder;
+    }
 }

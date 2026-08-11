@@ -459,18 +459,19 @@ new class extends Component
     {
         $rank = (int) $rank;
         $participant = $this->participant($id);
-        $categoryKey = $participant->age_category_key;
+        $categoryKey = $participant->display_category_key;
 
-        // Satu pemegang tiap juara PER KATEGORI umur — kosongkan pemegang lama di kategori yang sama saja.
+        // Satu pemegang tiap juara PER KATEGORI (umur, dan untuk Dewasa juga per Putra/Putri)
+        // — kosongkan pemegang lama di kategori yang sama saja.
         CompetitionParticipant::where('competition_id', $this->competitionId)
             ->where('rank', $rank)
             ->where('id', '!=', $participant->id)
             ->get()
-            ->filter(fn ($p) => $p->age_category_key === $categoryKey)
+            ->filter(fn ($p) => $p->display_category_key === $categoryKey)
             ->each(fn ($p) => $p->update(['rank' => null]));
 
         $participant->update(['rank' => $rank, 'status' => 'active']);
-        $this->success_message = $participant->name . ' ditetapkan sebagai Juara ' . $rank . ' (kategori ' . $participant->age_category_label . ').';
+        $this->success_message = $participant->name . ' ditetapkan sebagai Juara ' . $rank . ' (kategori ' . $participant->display_category_label . ').';
     }
 
     public function clearRank(string $id)
@@ -524,13 +525,13 @@ new class extends Component
         }
 
         $participants = CompetitionParticipant::where('competition_id', $this->competitionId)
-            ->with('familyMember:id,registration_number')
+            ->with('familyMember:id,registration_number,gender')
             ->orderBy('name')
             ->get();
 
         $byCategory = $participants
-            ->groupBy(fn ($p) => $p->age_category_key ?? 'none')
-            ->sortBy(fn ($group, $key) => \App\Support\AgeCategory::order($key === 'none' ? null : $key));
+            ->groupBy(fn ($p) => $p->display_category_key)
+            ->sortBy(fn ($group, $key) => \App\Support\AgeCategory::orderForDisplayKey($key));
 
         return [
             'teams' => collect(),
@@ -630,7 +631,7 @@ new class extends Component
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
             <div class="flex items-center gap-2 px-6 py-3 border-b border-slate-100 bg-slate-50">
                 <span class="w-2 h-4 bg-red-600 rounded"></span>
-                <h4 class="font-semibold text-slate-900">Kategori {{ $participants->first()->age_category_label }}</h4>
+                <h4 class="font-semibold text-slate-900">Kategori {{ $participants->first()->display_category_label }}</h4>
                 <span class="text-xs px-2 py-0.5 bg-white text-slate-600 rounded border border-slate-200">{{ $participants->count() }} peserta</span>
             </div>
             <div class="overflow-x-auto">
