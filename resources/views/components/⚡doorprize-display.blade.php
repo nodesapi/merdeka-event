@@ -90,12 +90,9 @@ new class extends Component
 };
 ?>
 
-<div class="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-b from-red-950 via-red-800 to-red-950" wire:poll.700ms="poll" x-data="doorprizeDisplay()" x-init="init()">
-    {{-- Dekorasi latar: bintik cahaya + sorot lembut, murni CSS --}}
-    <div class="pointer-events-none absolute inset-0" style="background-image: radial-gradient(circle, rgba(255,255,255,.10) 1px, transparent 1px); background-size: 26px 26px;"></div>
-    <div class="pointer-events-none absolute -left-32 -top-32 h-96 w-96 rounded-full bg-amber-400/20 blur-3xl"></div>
-    <div class="pointer-events-none absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-white/10 blur-3xl"></div>
-    <div class="pointer-events-none absolute left-1/2 top-1/3 h-[36rem] w-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-400/10 blur-3xl"></div>
+<div class="relative flex min-h-screen flex-col overflow-hidden bg-red-950 bg-cover bg-center bg-no-repeat" style="background-image: url('{{ asset('background-event-merdeka.webp') }}');" wire:poll.700ms="poll" x-data="doorprizeDisplay()" x-init="init()">
+    {{-- Overlay gelap tipis biar teks tetap kontras di atas foto --}}
+    <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40"></div>
 
     {{-- Watermark angka "81" raksasa di belakang panggung --}}
     <div class="pointer-events-none absolute inset-0 flex select-none items-center justify-center overflow-hidden">
@@ -109,16 +106,6 @@ new class extends Component
         <span class="firework-spark" style="top:72%; left:8%; animation-delay: 3s;"></span>
         <span class="firework-spark" style="top:66%; left:88%; animation-delay: 2.2s;"></span>
         <span class="firework-spark" style="top:8%; left:50%; animation-delay: 0.9s;"></span>
-    </div>
-
-    {{-- Untaian bendera merah-putih (bunting) --}}
-    <div class="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center">
-        <div class="relative flex flex-nowrap">
-            <div class="absolute inset-x-0 top-0 border-t-2 border-dashed border-white/30"></div>
-            @for ($i = 0; $i < 46; $i++)
-                <span class="bunting-flag {{ $i % 2 === 0 ? 'bunting-flag--red' : 'bunting-flag--white' }}" style="animation-delay: {{ $i * 0.05 }}s"></span>
-            @endfor
-        </div>
     </div>
 
     <button
@@ -191,22 +178,6 @@ new class extends Component
         @keyframes doorprize-pulse {
             0%, 100% { box-shadow: 0 0 0 0 rgba(252, 211, 77, .45); }
             50% { box-shadow: 0 0 0 18px rgba(252, 211, 77, 0); }
-        }
-
-        .bunting-flag {
-            width: 16px;
-            height: 24px;
-            margin: 0 1px;
-            clip-path: polygon(0 0, 100% 0, 50% 100%);
-            transform-origin: top center;
-            animation: bunting-sway 3.2s ease-in-out infinite;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, .25);
-        }
-        .bunting-flag--red { background: #dc2626; }
-        .bunting-flag--white { background: #fafafa; }
-        @keyframes bunting-sway {
-            0%, 100% { transform: rotate(-5deg); }
-            50% { transform: rotate(5deg); }
         }
 
         .firework-spark {
