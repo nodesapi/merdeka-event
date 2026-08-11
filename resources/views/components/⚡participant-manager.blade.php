@@ -34,6 +34,10 @@ new class extends Component
     public $new_team_gender = '';
     public $selectedTeamId = '';
 
+    // Ubah nama tim yang sudah dibuat
+    public ?string $editingTeamNameId = null;
+    public string $edit_team_name = '';
+
     // Kelompokkan peserta yang sudah daftar sendiri (pool "menunggu dikelompokkan") ke tim
     public array $assignTeamSelection = [];
     public $team_member_registration_number = '';
@@ -173,6 +177,41 @@ new class extends Component
         $team = $this->team($id);
         $team->update(['gender_category' => $gender]);
         $this->success_message = $team->display_name . ' ditetapkan sebagai kategori ' . $team->gender_category_label . '.';
+    }
+
+    /**
+     * Mulai ubah nama tim (isi input dengan nama saat ini).
+     */
+    public function startEditTeamName(string $id)
+    {
+        $team = $this->team($id);
+        $this->editingTeamNameId = $team->id;
+        $this->edit_team_name = $team->team_name ?? '';
+    }
+
+    /**
+     * Simpan nama tim baru. Kosong = kembali ke nama otomatis ("Tim #xxxxxxxx").
+     */
+    public function saveTeamName()
+    {
+        if (! $this->editingTeamNameId) {
+            return;
+        }
+
+        $data = $this->validate([
+            'edit_team_name' => 'nullable|string|max:255',
+        ]);
+
+        $team = $this->team($this->editingTeamNameId);
+        $team->update(['team_name' => $data['edit_team_name'] ?: null]);
+
+        $this->success_message = 'Nama tim diubah menjadi ' . $team->display_name . '.';
+        $this->reset(['editingTeamNameId', 'edit_team_name']);
+    }
+
+    public function cancelEditTeamName()
+    {
+        $this->reset(['editingTeamNameId', 'edit_team_name']);
     }
 
     protected function selectedTeam(): CompetitionTeam
@@ -876,8 +915,17 @@ new class extends Component
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
                         <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                             <div class="min-w-0">
+                                @if ($editingTeamNameId === $team->id)
+                                    <form wire:submit.prevent="saveTeamName" class="flex items-center gap-1.5">
+                                        <input type="text" wire:model="edit_team_name" autofocus maxlength="255" placeholder="Kosongkan untuk nama otomatis" class="w-56 max-w-full rounded-md border border-slate-300 px-2 py-1 text-sm font-semibold text-slate-900 focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                                        <button type="submit" class="shrink-0 rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700">Simpan</button>
+                                        <button type="button" wire:click="cancelEditTeamName" class="shrink-0 rounded-md border border-slate-300 px-2.5 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50">Batal</button>
+                                    </form>
+                                    @error('edit_team_name') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                                @else
                                 <div class="flex items-center gap-2">
                                     <h4 class="font-semibold text-slate-900 truncate">{{ $team->display_name }}</h4>
+                                    <button wire:click="startEditTeamName('{{ $team->id }}')" class="shrink-0 text-xs font-medium text-slate-400 hover:text-red-600" title="Ubah nama tim">Ubah Nama</button>
                                     <span class="inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded {{ $team->gender_category ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-slate-100 text-slate-400' }} font-semibold">{{ $team->gender_category_label }}</span>
                                     <span class="inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-100 font-semibold">Babak {{ $team->round }}{{ $team->round == $totalRounds ? ' (Final)' : '' }}</span>
                                     @if ($team->rank)
@@ -888,6 +936,7 @@ new class extends Component
                                         <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100 font-semibold">Lolos</span>
                                     @endif
                                 </div>
+                                @endif
                                 <p class="mt-1 text-xs text-slate-500">{{ $team->members->count() }} anggota</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">

@@ -28,6 +28,9 @@
                         @if ($competition->target_participants)
                             <span class="inline-flex items-center rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold text-stone-600">{{ $competition->target_participants }}</span>
                         @endif
+                        @unless ($competition->registration_open)
+                            <span class="inline-flex items-center rounded-full border border-stone-300 bg-stone-100 px-3 py-1 text-xs font-bold text-stone-600">Pendaftaran Ditutup</span>
+                        @endunless
                     </div>
                     @if ($competition->description)
                         <p class="mt-3 max-w-2xl whitespace-pre-line text-sm leading-6 text-stone-500">{{ $competition->description }}</p>

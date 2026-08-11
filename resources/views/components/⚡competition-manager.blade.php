@@ -21,6 +21,7 @@ new class extends Component
     public $max_team_size = '';
     public $total_rounds = 1;
     public $status = 'published';
+    public bool $registration_open = true;
     public $description = '';
 
     public $success_message = '';
@@ -37,6 +38,7 @@ new class extends Component
             'max_team_size' => 'nullable|integer|min:1|max:50',
             'total_rounds' => 'required|integer|min:1|max:20',
             'status' => 'required|in:draft,published,closed',
+            'registration_open' => 'boolean',
             'description' => 'nullable|string',
         ];
     }
@@ -113,7 +115,18 @@ new class extends Component
         $this->max_team_size = $competition->max_team_size;
         $this->total_rounds = $competition->total_rounds;
         $this->status = $competition->status;
+        $this->registration_open = $competition->registration_open;
         $this->description = $competition->description;
+    }
+
+    /**
+     * Aksi cepat buka/tutup pendaftaran langsung dari daftar, tanpa buka form Ubah.
+     */
+    public function toggleRegistration(string $id)
+    {
+        $competition = Competition::findOrFail($id);
+        $competition->update(['registration_open' => ! $competition->registration_open]);
+        $this->success_message = $competition->name . ' — pendaftaran ' . ($competition->registration_open ? 'dibuka' : 'ditutup') . '.';
     }
 
     public function delete(string $id)
@@ -131,6 +144,7 @@ new class extends Component
         $this->type = 'individual';
         $this->total_rounds = 1;
         $this->status = 'published';
+        $this->registration_open = true;
     }
 
     public function dismissAlert()
@@ -235,6 +249,10 @@ new class extends Component
                         @error('status') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
                 </div>
+                <label class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <input type="checkbox" wire:model="registration_open" class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                    <span class="text-xs font-semibold text-slate-700">Pendaftaran Dibuka <span class="font-normal text-slate-400">(lomba tetap tampil ke publik meski dimatikan, hanya form daftarnya yang terkunci)</span></span>
+                </label>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Deskripsi</label>
                     <textarea wire:model="description" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Keterangan singkat lomba"></textarea>
@@ -267,6 +285,7 @@ new class extends Component
                             <div class="flex items-center gap-2">
                                 <p class="font-medium text-slate-900 truncate">{{ $competition->name }}</p>
                                 <span class="text-xs px-2 py-0.5 rounded {{ $competition->status === 'published' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500' }}">{{ $competition->status }}</span>
+                                <span class="text-xs px-2 py-0.5 rounded {{ $competition->registration_open ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100' }}">{{ $competition->registration_open ? 'Pendaftaran Dibuka' : 'Pendaftaran Ditutup' }}</span>
                                 @if ($competition->type === 'group')
                                     <span class="text-xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">Grup</span>
                                 @endif
@@ -283,6 +302,7 @@ new class extends Component
                         </div>
                         <div class="flex shrink-0 gap-2">
                             <a href="{{ route('admin.participants', $competition->slug) }}" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">Peserta &amp; Juara</a>
+                            <button wire:click="toggleRegistration('{{ $competition->id }}')" class="text-xs px-3 py-1.5 border rounded-md font-medium {{ $competition->registration_open ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' }}">{{ $competition->registration_open ? 'Tutup Pendaftaran' : 'Buka Pendaftaran' }}</button>
                             <button wire:click="edit('{{ $competition->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>
                             <button wire:click="confirmDelete('{{ $competition->id }}', 'lomba ini beserta pesertanya')" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>
                         </div>

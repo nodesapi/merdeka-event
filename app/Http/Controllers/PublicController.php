@@ -820,9 +820,12 @@ class PublicController extends Controller
                     'age_limit' => $competition->age_limit_label,
                     'eligible' => $eligible,
                     'already' => $already,
+                    'registration_open' => $competition->registration_open,
                     'reason' => $already
                         ? 'Sudah terdaftar'
-                        : (! $eligible ? 'Tidak sesuai umur' : null),
+                        : (! $competition->registration_open
+                            ? 'Pendaftaran ditutup'
+                            : (! $eligible ? 'Tidak sesuai umur' : null)),
                 ];
             })
             ->values();
@@ -889,6 +892,11 @@ class PublicController extends Controller
             foreach ($competitions as $competition) {
                 if (in_array($competition->id, $alreadyIds, true)) {
                     $skipped[] = $competition->name . ' (sudah terdaftar)';
+                    continue;
+                }
+
+                if (! $competition->registration_open) {
+                    $skipped[] = $competition->name . ' (pendaftaran ditutup)';
                     continue;
                 }
 

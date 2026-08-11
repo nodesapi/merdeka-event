@@ -22,10 +22,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'total_rounds',
     'description',
     'status',
+    'registration_open',
 ])]
 class Competition extends Model
 {
     use HasFactory, HasUuidV7;
+
+    protected function casts(): array
+    {
+        return [
+            'registration_open' => 'boolean',
+        ];
+    }
 
     public function getRouteKeyName(): string
     {
@@ -50,6 +58,15 @@ class Competition extends Model
     public function isGroup(): bool
     {
         return $this->type === 'group';
+    }
+
+    /**
+     * Apakah pendaftaran lomba ini sedang dibuka (saklar manual panitia,
+     * terpisah dari status publish/visibilitas).
+     */
+    public function isRegistrationOpen(): bool
+    {
+        return (bool) $this->registration_open;
     }
 
     /**

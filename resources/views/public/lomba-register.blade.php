@@ -201,7 +201,7 @@
                             ? ageLimit + ' · Lomba beregu, tim ditentukan panitia'
                             : ageLimit;
 
-                        const disabled = c.already || !c.eligible;
+                        const disabled = c.already || !c.eligible || !c.registration_open;
                         if (disabled) {
                             checkbox.disabled = true;
                             checkbox.checked = false;
