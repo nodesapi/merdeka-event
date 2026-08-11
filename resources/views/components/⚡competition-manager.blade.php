@@ -173,9 +173,9 @@ new class extends Component
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-8">
+    <div class="space-y-8">
         <!-- Form -->
-        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm h-fit">
+        <div class="mx-auto max-w-2xl bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <h3 class="font-semibold text-base text-slate-900 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
                 <span class="w-2 h-4 bg-red-600 rounded"></span>
                 {{ $editingId ? 'Ubah Lomba' : 'Tambah Lomba' }}
@@ -249,10 +249,14 @@ new class extends Component
                         @error('status') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
                 </div>
-                <label class="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
-                    <input type="checkbox" wire:model="registration_open" class="h-4 w-4 rounded border-slate-300 text-red-600 focus:ring-red-500">
-                    <span class="text-xs font-semibold text-slate-700">Pendaftaran Dibuka <span class="font-normal text-slate-400">(lomba tetap tampil ke publik meski dimatikan, hanya form daftarnya yang terkunci)</span></span>
-                </label>
+                <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+                    <span class="text-xs font-semibold text-slate-700">Pendaftaran Dibuka <span class="block font-normal text-slate-400">Lomba tetap tampil ke publik meski dimatikan, hanya form daftarnya yang terkunci.</span></span>
+                    <label class="relative inline-flex shrink-0 cursor-pointer items-center">
+                        <input type="checkbox" wire:model="registration_open" class="peer sr-only">
+                        <div class="h-6 w-11 rounded-full bg-slate-300 transition-colors peer-checked:bg-red-600"></div>
+                        <div class="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></div>
+                    </label>
+                </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Deskripsi</label>
                     <textarea wire:model="description" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Keterangan singkat lomba"></textarea>
@@ -280,27 +284,25 @@ new class extends Component
             </h3>
             <div class="divide-y divide-slate-100">
                 @forelse ($competitions as $competition)
-                    <div class="flex items-center justify-between gap-3 py-3">
+                    <div class="flex flex-col gap-3 py-4 lg:flex-row lg:items-start lg:justify-between">
                         <div class="min-w-0">
-                            <div class="flex items-center gap-2">
-                                <p class="font-medium text-slate-900 truncate">{{ $competition->name }}</p>
+                            <p class="font-medium text-slate-900">{{ $competition->name }}</p>
+                            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
                                 <span class="text-xs px-2 py-0.5 rounded {{ $competition->status === 'published' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500' }}">{{ $competition->status }}</span>
                                 <span class="text-xs px-2 py-0.5 rounded {{ $competition->registration_open ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100' }}">{{ $competition->registration_open ? 'Pendaftaran Dibuka' : 'Pendaftaran Ditutup' }}</span>
                                 @if ($competition->type === 'group')
                                     <span class="text-xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">Grup</span>
                                 @endif
-                            </div>
-                            <p class="text-xs text-slate-500">{{ $competition->target_participants }} · {{ $competition->total_rounds }} babak · {{ $competition->participants_count }} peserta</p>
-                            <div class="mt-0.5 flex flex-wrap gap-1">
                                 @if ($competition->age_limit_label)
-                                    <p class="inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{{ $competition->age_limit_label }}</p>
+                                    <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">{{ $competition->age_limit_label }}</span>
                                 @endif
                                 @if ($competition->team_size_label)
-                                    <p class="inline-flex rounded bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700">{{ $competition->team_size_label }}</p>
+                                    <span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700">{{ $competition->team_size_label }}</span>
                                 @endif
                             </div>
+                            <p class="mt-1.5 text-xs text-slate-500">{{ $competition->target_participants }} · {{ $competition->total_rounds }} babak · {{ $competition->participants_count }} peserta</p>
                         </div>
-                        <div class="flex shrink-0 gap-2">
+                        <div class="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">
                             <a href="{{ route('admin.participants', $competition->slug) }}" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">Peserta &amp; Juara</a>
                             <button wire:click="toggleRegistration('{{ $competition->id }}')" class="text-xs px-3 py-1.5 border rounded-md font-medium {{ $competition->registration_open ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' }}">{{ $competition->registration_open ? 'Tutup Pendaftaran' : 'Buka Pendaftaran' }}</button>
                             <button wire:click="edit('{{ $competition->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>
@@ -308,7 +310,7 @@ new class extends Component
                         </div>
                     </div>
                 @empty
-                    <p class="py-4 text-center text-slate-400 text-sm">Belum ada lomba. Tambahkan lewat form di samping.</p>
+                    <p class="py-4 text-center text-slate-400 text-sm">Belum ada lomba. Tambahkan lewat form di atas.</p>
                 @endforelse
             </div>
         </div>
