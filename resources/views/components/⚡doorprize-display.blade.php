@@ -90,7 +90,7 @@ new class extends Component
 };
 ?>
 
-<div class="relative flex min-h-screen flex-col overflow-hidden bg-red-950 bg-cover bg-center bg-no-repeat" style="background-image: url('{{ asset('background-event-merdeka.webp') }}');" wire:poll.700ms="poll" x-data="doorprizeDisplay()" x-init="init()">
+<div class="relative flex min-h-screen flex-col overflow-hidden bg-red-950 bg-cover bg-center bg-no-repeat" style="background-image: url('{{ asset('background-event-merdeka.webp') }}?v={{ file_exists(public_path('background-event-merdeka.webp')) ? filemtime(public_path('background-event-merdeka.webp')) : 1 }}');" wire:poll.700ms="poll" x-data="doorprizeDisplay()" x-init="init()">
     {{-- Overlay gelap tipis biar teks tetap kontras di atas foto --}}
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/40"></div>
 
