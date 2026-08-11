@@ -18,6 +18,7 @@ Route::controller(PublicController::class)->group(function () {
     Route::get('/susunan-acara', 'schedule')->name('public.schedule');
     Route::get('/lomba', 'competitions')->name('public.competitions');
     Route::get('/lomba/{competition:slug}', 'competitionShow')->name('public.competition.show');
+    Route::get('/lomba/{competition:slug}/bagan', 'competitionBracket')->name('public.competition.bracket');
     Route::get('/transparansi', 'finance')->name('public.finance');
     Route::get('/form-warga', 'familyForm')->name('public.family-form');
     Route::post('/form-warga', 'storeFamilyForm')->name('public.family-form.store');
@@ -102,4 +103,7 @@ Route::middleware(['auth', 'role:admin|panitia'])
         Route::get('/lomba/{competition:slug}/peserta', function (Competition $competition) {
             return view('admin.participants', ['competition' => $competition]);
         })->name('participants');
+        Route::get('/lomba/{competition:slug}/bagan', function (Competition $competition) {
+            return view('admin.bracket', ['competition' => $competition]);
+        })->name('bracket');
     });

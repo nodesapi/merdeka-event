@@ -608,6 +608,7 @@ new class extends Component
             <a href="{{ route('admin.participants.export', ['lomba' => $competitionSlug, 'format' => 'pdf']) }}" target="_blank" class="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100">
                 <x-icon name="calendar" class="h-4 w-4" /> PDF
             </a>
+            <a href="{{ route('admin.bracket', $competitionSlug) }}" class="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">Bagan Turnamen</a>
             <a href="{{ route('public.competition.show', $competitionSlug) }}" target="_blank" class="text-xs px-3 py-2 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Lihat halaman publik &rarr;</a>
         </div>
     </div>

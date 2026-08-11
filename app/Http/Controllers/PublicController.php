@@ -197,6 +197,17 @@ class PublicController extends Controller
         ]);
     }
 
+    /**
+     * Layar bagan turnamen fullscreen (live) — dibuka di device terpisah untuk
+     * diproyeksikan ke TV/monitor besar, sama seperti layar undian doorprize.
+     */
+    public function competitionBracket(Competition $competition): View
+    {
+        abort_unless($competition->hasBracket(), 404);
+
+        return view('public.bracket-display', ['competition' => $competition]);
+    }
+
     public function finance(): View
     {
         $event = $this->activeEvent();

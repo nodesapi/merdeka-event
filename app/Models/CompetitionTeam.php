@@ -45,4 +45,26 @@ class CompetitionTeam extends Model
             default => 'Tanpa kategori',
         };
     }
+
+    public function getBracketMetaAttribute(): ?string
+    {
+        $count = $this->relationLoaded('members') ? $this->members->count() : $this->members()->count();
+
+        return $count . ' anggota';
+    }
+
+    /**
+     * Samakan dengan CompetitionParticipant::display_category_key supaya bagan
+     * turnamen bisa mengelompokkan entrant per kategori tanpa peduli jenis lomba —
+     * tim tidak punya kategori umur, jadi kategorinya = Putra/Putri.
+     */
+    public function getDisplayCategoryKeyAttribute(): string
+    {
+        return $this->gender_category ?? 'none';
+    }
+
+    public function getDisplayCategoryLabelAttribute(): string
+    {
+        return $this->gender_category_label;
+    }
 }

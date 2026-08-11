@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Models;
+
+use App\Traits\HasUuidV7;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+#[Fillable([
+    'competition_match_id',
+    'entrant_id',
+])]
+class CompetitionMatchEntrant extends Model
+{
+    use HasFactory, HasUuidV7;
+
+    public function match(): BelongsTo
+    {
+        return $this->belongsTo(CompetitionMatch::class, 'competition_match_id');
+    }
+}

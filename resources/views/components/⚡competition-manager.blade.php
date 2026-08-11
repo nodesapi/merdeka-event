@@ -322,6 +322,7 @@ new class extends Component
                         </div>
                         <div class="flex flex-wrap gap-2 lg:shrink-0 lg:justify-end">
                             <a href="{{ route('admin.participants', $competition->slug) }}" class="text-xs px-3 py-1.5 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium">Peserta &amp; Juara</a>
+                            <a href="{{ route('admin.bracket', $competition->slug) }}" class="text-xs px-3 py-1.5 border border-indigo-200 bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 font-medium">Bagan</a>
                             <button wire:click="toggleRegistration('{{ $competition->id }}')" class="text-xs px-3 py-1.5 border rounded-md font-medium {{ $competition->registration_open ? 'border-amber-200 text-amber-700 hover:bg-amber-50' : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50' }}">{{ $competition->registration_open ? 'Tutup Pendaftaran' : 'Buka Pendaftaran' }}</button>
                             <button wire:click="edit('{{ $competition->id }}')" class="text-xs px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md hover:bg-slate-50 font-medium">Ubah</button>
                             <button wire:click="confirmDelete('{{ $competition->id }}', 'lomba ini beserta pesertanya')" class="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-md hover:bg-red-50 font-medium">Hapus</button>

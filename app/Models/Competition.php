@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'status',
     'registration_open',
     'registration_closes_at',
+    'bracket_lines_per_match',
 ])]
 class Competition extends Model
 {
@@ -57,9 +58,51 @@ class Competition extends Model
         return $this->hasMany(CompetitionTeam::class);
     }
 
+    public function matches(): HasMany
+    {
+        return $this->hasMany(CompetitionMatch::class);
+    }
+
     public function isGroup(): bool
     {
         return $this->type === 'group';
+    }
+
+    /**
+     * Apakah lomba ini sedang/sudah pakai bagan turnamen.
+     */
+    public function hasBracket(): bool
+    {
+        return $this->bracket_lines_per_match !== null;
+    }
+
+    /**
+     * Peserta lomba individual ATAU tim lomba grup, tergantung Competition::type —
+     * sumber "entrant" seragam yang dipakai bagan turnamen.
+     */
+    public function entrants(): HasMany
+    {
+        return $this->isGroup() ? $this->teams() : $this->participants();
+    }
+
+    /**
+     * Entrant lomba ini dikelompokkan per kategori (kategori umur untuk lomba
+     * individu, Putra/Putri untuk lomba grup) — dipakai bagan turnamen supaya
+     * peserta beda kategori tidak pernah dipertemukan, sama seperti layar
+     * Peserta & Juara. Diurut pakai AgeCategory::orderForDisplayKey supaya
+     * konsisten dengan pengelompokan yang sudah ada di tempat lain.
+     *
+     * @return \Illuminate\Support\Collection<string, \Illuminate\Support\Collection<int, CompetitionParticipant|CompetitionTeam>>
+     */
+    public function entrantsByCategory()
+    {
+        $isGroup = $this->isGroup();
+
+        return $this->entrants()->get()
+            ->groupBy(fn ($e) => $e->display_category_key)
+            ->sortBy(fn ($group, $key) => $isGroup
+                ? match ($key) { 'L' => 0, 'P' => 1, default => 2 }
+                : \App\Support\AgeCategory::orderForDisplayKey($key));
     }
 
     /**

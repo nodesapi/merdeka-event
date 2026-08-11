@@ -94,4 +94,18 @@ class CompetitionParticipant extends Model
 
         return $this->age_category_label . ' — ' . $genderSuffix;
     }
+
+    /**
+     * Nama tampilan seragam dengan CompetitionTeam::display_name, dipakai di layar
+     * bagan turnamen yang bisa berisi peserta individu ATAU tim tergantung jenis lomba.
+     */
+    public function getDisplayNameAttribute(): string
+    {
+        return $this->name;
+    }
+
+    public function getBracketMetaAttribute(): ?string
+    {
+        return $this->age !== null ? $this->age . ' th' : null;
+    }
 }

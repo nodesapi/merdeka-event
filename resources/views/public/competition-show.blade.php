@@ -36,6 +36,11 @@
                         <p class="mt-3 max-w-2xl whitespace-pre-line text-sm leading-6 text-stone-500">{{ $competition->description }}</p>
                     @endif
                 </div>
+                @if ($competition->hasBracket())
+                    <a href="{{ route('public.competition.bracket', $competition->slug) }}" target="_blank" class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-red-800">
+                        <x-icon name="trophy" class="h-4 w-4" /> Lihat Bagan Turnamen
+                    </a>
+                @endif
             </div>
         </div>
 
