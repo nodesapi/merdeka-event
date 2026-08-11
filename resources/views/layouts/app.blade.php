@@ -56,7 +56,7 @@
     <div class="flex min-h-screen" data-admin-shell>
         <div class="fixed inset-0 z-40 hidden bg-slate-950/50 backdrop-blur-sm lg:hidden" data-admin-overlay></div>
 
-        <aside class="fixed inset-y-0 left-0 z-50 flex w-72 -translate-x-full flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out lg:static lg:z-auto lg:w-64 lg:translate-x-0 lg:shadow-none" data-admin-sidebar>
+        <aside class="fixed inset-y-0 left-0 z-50 flex w-72 -translate-x-full flex-col border-r border-slate-200 bg-white shadow-2xl transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-64 lg:translate-x-0 lg:shadow-none" data-admin-sidebar>
             <div class="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-5 lg:px-6">
                 <a href="{{ route('admin.dashboard') }}" class="flex items-center" title="{{ $siteName }}">
                     @if ($site?->logo_url)

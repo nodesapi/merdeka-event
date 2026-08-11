@@ -33,7 +33,7 @@
                     @if ($competition->age_limit_label)
                         <p class="inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-700">{{ $competition->age_limit_label }}</p>
                     @endif
-                    @unless ($competition->registration_open)
+                    @unless ($competition->isRegistrationOpen())
                         <p class="inline-flex w-fit items-center gap-1 rounded-full bg-stone-200 px-2.5 py-0.5 text-[11px] font-bold text-stone-600">Pendaftaran Ditutup</p>
                     @endunless
                 </div>

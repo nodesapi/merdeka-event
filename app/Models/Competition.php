@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'description',
     'status',
     'registration_open',
+    'registration_closes_at',
 ])]
 class Competition extends Model
 {
@@ -32,6 +33,7 @@ class Competition extends Model
     {
         return [
             'registration_open' => 'boolean',
+            'registration_closes_at' => 'datetime',
         ];
     }
 
@@ -61,12 +63,17 @@ class Competition extends Model
     }
 
     /**
-     * Apakah pendaftaran lomba ini sedang dibuka (saklar manual panitia,
-     * terpisah dari status publish/visibilitas).
+     * Apakah pendaftaran lomba ini sedang dibuka — saklar manual panitia
+     * (terpisah dari status publish/visibilitas) DAN jadwal tutup otomatis
+     * (kalau diisi). Keduanya harus "mengizinkan" supaya pendaftaran dianggap buka.
      */
     public function isRegistrationOpen(): bool
     {
-        return (bool) $this->registration_open;
+        if (! $this->registration_open) {
+            return false;
+        }
+
+        return $this->registration_closes_at === null || $this->registration_closes_at->isFuture();
     }
 
     /**

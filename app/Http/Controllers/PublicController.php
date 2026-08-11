@@ -820,10 +820,10 @@ class PublicController extends Controller
                     'age_limit' => $competition->age_limit_label,
                     'eligible' => $eligible,
                     'already' => $already,
-                    'registration_open' => $competition->registration_open,
+                    'registration_open' => $competition->isRegistrationOpen(),
                     'reason' => $already
                         ? 'Sudah terdaftar'
-                        : (! $competition->registration_open
+                        : (! $competition->isRegistrationOpen()
                             ? 'Pendaftaran ditutup'
                             : (! $eligible ? 'Tidak sesuai umur' : null)),
                 ];
@@ -895,7 +895,7 @@ class PublicController extends Controller
                     continue;
                 }
 
-                if (! $competition->registration_open) {
+                if (! $competition->isRegistrationOpen()) {
                     $skipped[] = $competition->name . ' (pendaftaran ditutup)';
                     continue;
                 }

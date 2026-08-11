@@ -22,6 +22,7 @@ new class extends Component
     public $total_rounds = 1;
     public $status = 'published';
     public bool $registration_open = true;
+    public $registration_closes_at = '';
     public $description = '';
 
     public $success_message = '';
@@ -39,6 +40,7 @@ new class extends Component
             'total_rounds' => 'required|integer|min:1|max:20',
             'status' => 'required|in:draft,published,closed',
             'registration_open' => 'boolean',
+            'registration_closes_at' => 'nullable|date',
             'description' => 'nullable|string',
         ];
     }
@@ -57,6 +59,7 @@ new class extends Component
         $data['max_age'] = ($data['max_age'] ?? '') === '' ? null : (int) $data['max_age'];
         $data['min_team_members'] = ($data['min_team_members'] ?? '') === '' ? null : (int) $data['min_team_members'];
         $data['max_team_size'] = ($data['max_team_size'] ?? '') === '' ? null : (int) $data['max_team_size'];
+        $data['registration_closes_at'] = ($data['registration_closes_at'] ?? '') === '' ? null : $data['registration_closes_at'];
 
         if ($data['min_age'] !== null && $data['max_age'] !== null && $data['max_age'] < $data['min_age']) {
             $this->addError('max_age', 'Umur maksimal tidak boleh lebih kecil dari umur minimal.');
@@ -116,6 +119,7 @@ new class extends Component
         $this->total_rounds = $competition->total_rounds;
         $this->status = $competition->status;
         $this->registration_open = $competition->registration_open;
+        $this->registration_closes_at = $competition->registration_closes_at?->format('Y-m-d\TH:i');
         $this->description = $competition->description;
     }
 
@@ -125,8 +129,17 @@ new class extends Component
     public function toggleRegistration(string $id)
     {
         $competition = Competition::findOrFail($id);
-        $competition->update(['registration_open' => ! $competition->registration_open]);
-        $this->success_message = $competition->name . ' — pendaftaran ' . ($competition->registration_open ? 'dibuka' : 'ditutup') . '.';
+        $newState = ! $competition->registration_open;
+        $data = ['registration_open' => $newState];
+
+        // Kalau dibuka lagi tapi jadwal tutup otomatis sudah lewat, hapus jadwalnya juga
+        // supaya benar-benar terbuka, bukan diam-diam tertutup lagi oleh jadwal lama.
+        if ($newState && $competition->registration_closes_at?->isPast()) {
+            $data['registration_closes_at'] = null;
+        }
+
+        $competition->update($data);
+        $this->success_message = $competition->name . ' — pendaftaran ' . ($competition->isRegistrationOpen() ? 'dibuka' : 'ditutup') . '.';
     }
 
     public function delete(string $id)
@@ -140,7 +153,7 @@ new class extends Component
 
     public function resetForm()
     {
-        $this->reset(['editingId', 'name', 'target_participants', 'min_age', 'max_age', 'min_team_members', 'max_team_size', 'description']);
+        $this->reset(['editingId', 'name', 'target_participants', 'min_age', 'max_age', 'min_team_members', 'max_team_size', 'registration_closes_at', 'description']);
         $this->type = 'individual';
         $this->total_rounds = 1;
         $this->status = 'published';
@@ -175,13 +188,13 @@ new class extends Component
 
     <div class="space-y-8">
         <!-- Form -->
-        <div class="mx-auto max-w-2xl bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
             <h3 class="font-semibold text-base text-slate-900 mb-5 pb-3 border-b border-slate-100 flex items-center gap-2">
                 <span class="w-2 h-4 bg-red-600 rounded"></span>
                 {{ $editingId ? 'Ubah Lomba' : 'Tambah Lomba' }}
             </h3>
-            <form wire:submit.prevent="save" class="space-y-4">
-                <div>
+            <form wire:submit.prevent="save" class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-x-6">
+                <div class="lg:col-span-2">
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Lomba</label>
                     <input type="text" wire:model="name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: Lomba Makan Kerupuk">
                     @error('name') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
@@ -199,19 +212,17 @@ new class extends Component
                     <input type="text" wire:model="target_participants" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Contoh: Anak-anak dan Remaja">
                     @error('target_participants') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Umur Minimal</label>
-                        <input type="number" wire:model="min_age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
-                        @error('min_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Umur Maksimal</label>
-                        <input type="number" wire:model="max_age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
-                        @error('max_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Umur Minimal</label>
+                    <input type="number" wire:model="min_age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                    @error('min_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
-                <p class="-mt-1 text-[11px] text-slate-400">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Umur Maksimal</label>
+                    <input type="number" wire:model="max_age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                    @error('max_age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <p class="lg:col-span-2 -mt-2 text-[11px] text-slate-400">
                     @if ($type === 'group')
                         Batas umur tetap berlaku untuk tiap anggota tim. Kosongkan bila bebas umur.
                     @else
@@ -219,37 +230,33 @@ new class extends Component
                     @endif
                 </p>
                 @if ($type === 'group')
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota Tim Minimal</label>
-                            <input type="number" wire:model="min_team_members" min="1" max="50" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
-                            @error('min_team_members') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                        </div>
-                        <div>
-                            <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota Tim Maksimal</label>
-                            <input type="number" wire:model="max_team_size" min="1" max="50" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
-                            @error('max_team_size') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                        </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota Tim Minimal</label>
+                        <input type="number" wire:model="min_team_members" min="1" max="50" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                        @error('min_team_members') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
-                    <p class="-mt-1 text-[11px] text-slate-400">Jumlah anggota per tim keluarga yang mendaftar lomba ini.</p>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Anggota Tim Maksimal</label>
+                        <input type="number" wire:model="max_team_size" min="1" max="50" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Kosong = bebas">
+                        @error('max_team_size') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                    </div>
+                    <p class="lg:col-span-2 -mt-2 text-[11px] text-slate-400">Jumlah anggota per tim keluarga yang mendaftar lomba ini.</p>
                 @endif
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Jumlah Babak</label>
-                        <input type="number" wire:model="total_rounds" min="1" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500">
-                        @error('total_rounds') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
-                        <select wire:model="status" data-custom-select class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
-                            <option value="draft">Draft</option>
-                            <option value="published">Publikasi</option>
-                            <option value="closed">Ditutup</option>
-                        </select>
-                        @error('status') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Jumlah Babak</label>
+                    <input type="number" wire:model="total_rounds" min="1" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                    @error('total_rounds') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
-                <div class="flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Status</label>
+                    <select wire:model="status" data-custom-select class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                        <option value="draft">Draft</option>
+                        <option value="published">Publikasi</option>
+                        <option value="closed">Ditutup</option>
+                    </select>
+                    @error('status') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div class="lg:col-span-2 flex items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5">
                     <span class="text-xs font-semibold text-slate-700">Pendaftaran Dibuka <span class="block font-normal text-slate-400">Lomba tetap tampil ke publik meski dimatikan, hanya form daftarnya yang terkunci.</span></span>
                     <label class="relative inline-flex shrink-0 cursor-pointer items-center">
                         <input type="checkbox" wire:model="registration_open" class="peer sr-only">
@@ -257,12 +264,20 @@ new class extends Component
                         <div class="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-5"></div>
                     </label>
                 </div>
-                <div>
+                <div class="lg:col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Tutup Pendaftaran Otomatis Pada</label>
+                    <div wire:ignore>
+                        <input type="hidden" wire:model.live="registration_closes_at" value="{{ $registration_closes_at }}" data-custom-datetime data-custom-datetime-placeholder="Pilih tanggal &amp; jam (opsional)">
+                    </div>
+                    <p class="mt-1.5 text-xs text-slate-400">Opsional — begitu waktu ini lewat, pendaftaran otomatis tertutup tanpa perlu klik apa pun. Kosongkan kalau cukup mengandalkan saklar di atas.</p>
+                    @error('registration_closes_at') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div class="lg:col-span-2">
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Deskripsi</label>
                     <textarea wire:model="description" rows="3" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Keterangan singkat lomba"></textarea>
                     @error('description') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
-                <div class="flex justify-end gap-2">
+                <div class="lg:col-span-2 flex justify-end gap-2">
                     @if ($editingId)
                         <button type="button" wire:click="resetForm" class="px-4 py-2 border border-slate-300 text-slate-600 rounded-md text-sm font-medium hover:bg-slate-50">Batal</button>
                     @endif
@@ -289,7 +304,10 @@ new class extends Component
                             <p class="font-medium text-slate-900">{{ $competition->name }}</p>
                             <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
                                 <span class="text-xs px-2 py-0.5 rounded {{ $competition->status === 'published' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-slate-100 text-slate-500' }}">{{ $competition->status }}</span>
-                                <span class="text-xs px-2 py-0.5 rounded {{ $competition->registration_open ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100' }}">{{ $competition->registration_open ? 'Pendaftaran Dibuka' : 'Pendaftaran Ditutup' }}</span>
+                                <span class="text-xs px-2 py-0.5 rounded {{ $competition->isRegistrationOpen() ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100' }}">{{ $competition->isRegistrationOpen() ? 'Pendaftaran Dibuka' : 'Pendaftaran Ditutup' }}</span>
+                                @if ($competition->registration_open && $competition->registration_closes_at?->isFuture())
+                                    <span class="text-xs px-2 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-100">Tutup otomatis {{ $competition->registration_closes_at->translatedFormat('d M Y, H:i') }}</span>
+                                @endif
                                 @if ($competition->type === 'group')
                                     <span class="text-xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100">Grup</span>
                                 @endif
