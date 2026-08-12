@@ -16,6 +16,7 @@ new class extends Component
     public bool $isGroup = false;
 
     public $lines_per_match = 2;
+    public $winners_per_heat = 1;
 
     public $success_message = '';
     public $error_message = '';
@@ -37,10 +38,11 @@ new class extends Component
     {
         $this->validate([
             'lines_per_match' => 'required|integer|min:2|max:64',
+            'winners_per_heat' => 'required|integer|min:1|max:32',
         ]);
 
         try {
-            (new BracketGenerator($this->competition()))->start((int) $this->lines_per_match);
+            (new BracketGenerator($this->competition()))->start((int) $this->lines_per_match, (int) $this->winners_per_heat);
             $this->success_message = 'Bagan berhasil dibuat.';
             $this->error_message = '';
         } catch (\InvalidArgumentException $e) {
@@ -48,11 +50,16 @@ new class extends Component
         }
     }
 
-    public function decideWinner(string $matchId, string $winnerEntrantId)
+    /**
+     * Klik nama sesuai urutan finish — klik pertama di heat ini jadi peringkat 1,
+     * klik kedua peringkat 2, dst. Heat otomatis "selesai" begitu jumlah peringkat
+     * wajibnya terisi (lihat CompetitionMatch::requiredPlacements()).
+     */
+    public function recordFinish(string $matchId, string $entrantId)
     {
         try {
             $match = CompetitionMatch::where('competition_id', $this->competitionId)->findOrFail($matchId);
-            (new BracketGenerator($this->competition()))->decideMatch($match, $winnerEntrantId);
+            (new BracketGenerator($this->competition()))->recordPlacement($match, $entrantId);
             $this->success_message = '';
             $this->error_message = '';
         } catch (\InvalidArgumentException $e) {
@@ -205,12 +212,20 @@ new class extends Component
             @if ($entrantCount < 2)
                 <p class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Minimal 2 {{ $competitionType === 'group' ? 'tim' : 'peserta' }} dalam satu kategori untuk membuat bagan.</p>
             @else
-                <form wire:submit.prevent="startBracket" class="flex items-end gap-3">
+                <form wire:submit.prevent="startBracket" class="flex flex-wrap items-end gap-3">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Peserta/Tim per Pertandingan</label>
-                        <input type="number" wire:model="lines_per_match" min="2" max="64" class="w-40 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                        <input type="number" wire:model.live="lines_per_match" min="2" max="64" class="w-40 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500">
                         @error('lines_per_match') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
                     </div>
+                    @if ((int) $lines_per_match > 2)
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">Jumlah Pemenang per Heat</label>
+                            <input type="number" wire:model="winners_per_heat" min="1" max="32" class="w-40 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                            <p class="mt-1 max-w-xs text-[11px] text-slate-400">Berapa peserta/tim dari tiap heat yang lolos ke babak berikutnya. Di babak final otomatis tetap bisa pilih Juara 1/2/3.</p>
+                            @error('winners_per_heat') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                        </div>
+                    @endif
                     <button type="submit" class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm font-medium shadow-sm">Buat Bagan</button>
                 </form>
             @endif
@@ -241,12 +256,22 @@ new class extends Component
                             </div>
                         @endif
 
-                        <x-bracket-view
-                            :matches-by-round="$cat['matchesByRound']"
-                            :entrants-by-id="$entrantsById"
-                            :lines-per-match="$linesPerMatch"
-                            :interactive="true"
-                        />
+                        {{-- Bagan pohon visual di layar lebar; daftar kartu tap-friendly di HP/tablet kecil. --}}
+                        <div class="hidden lg:block">
+                            <x-bracket-view
+                                :matches-by-round="$cat['matchesByRound']"
+                                :entrants-by-id="$entrantsById"
+                                :lines-per-match="$linesPerMatch"
+                                :interactive="true"
+                            />
+                        </div>
+                        <div class="lg:hidden">
+                            <x-bracket-mobile-list
+                                :matches-by-round="$cat['matchesByRound']"
+                                :entrants-by-id="$entrantsById"
+                                :interactive="true"
+                            />
+                        </div>
                     @endif
                 </div>
             @endforeach

@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'registration_open',
     'registration_closes_at',
     'bracket_lines_per_match',
+    'winners_per_heat',
 ])]
 class Competition extends Model
 {

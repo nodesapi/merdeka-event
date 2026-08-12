@@ -45,6 +45,67 @@ class CompetitionMatch extends Model
     }
 
     /**
+     * Heat ini adalah Final kategori tersebut: satu-satunya heat non-Juara-3 di
+     * babak terakhir kategori ini (kategori lain punya babak terakhirnya sendiri).
+     * Dipakai baik oleh BracketGenerator (nentuin berapa placement wajib diisi)
+     * maupun langsung dari Blade (nentuin gaya tampilan medali vs "Lolos" biasa).
+     */
+    public function isFinalMatch(): bool
+    {
+        if ($this->is_third_place) {
+            return false;
+        }
+
+        $maxRound = static::where('competition_id', $this->competition_id)
+            ->where('category_key', $this->category_key)
+            ->max('round');
+
+        if ($this->round !== $maxRound) {
+            return false;
+        }
+
+        return static::where('competition_id', $this->competition_id)
+            ->where('category_key', $this->category_key)
+            ->where('round', $maxRound)
+            ->where('is_third_place', false)
+            ->count() === 1;
+    }
+
+    /**
+     * Berapa peringkat yang WAJIB diisi sebelum heat ini dianggap selesai:
+     * - Partai Juara 3: cuma perlu 1 (siapa yang menang, gugur Juara 4+ tidak ada).
+     * - Final kategori: sampai 3 (Juara 1/2/3), dibatasi jumlah entrant kalau < 3.
+     * - Heat biasa: `winners_per_heat` lomba ini (mode "vs" selalu 1), dibatasi
+     *   jumlah entrant heat ini kalau lebih kecil dari itu.
+     */
+    public function requiredPlacements(): int
+    {
+        $entrantCount = $this->entrants->count();
+
+        if ($this->is_third_place) {
+            return min(1, $entrantCount);
+        }
+
+        if ($this->isFinalMatch()) {
+            return min(3, $entrantCount);
+        }
+
+        $winnersPerHeat = max(1, (int) ($this->competition->winners_per_heat ?? 1));
+
+        return min($winnersPerHeat, $entrantCount);
+    }
+
+    public function placementFor(string $entrantId): ?int
+    {
+        return $this->entrants->firstWhere('entrant_id', $entrantId)?->placement;
+    }
+
+    public function hasAnyPlacement(): bool
+    {
+        return $this->entrants->contains(fn (CompetitionMatchEntrant $e) => $e->placement !== null);
+    }
+
+    /**
      * Resolve entrant/pemenang heat ini jadi model CompetitionParticipant atau
      * CompetitionTeam dari peta yang sudah di-preload (hindari query per-heat/N+1).
      *

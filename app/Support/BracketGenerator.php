@@ -22,6 +22,15 @@ use InvalidArgumentException;
  * grup) dapat bagan sendiri-sendiri — sama seperti pengelompokan di layar
  * Peserta & Juara — supaya peserta beda kategori tidak pernah dipertemukan.
  * Kategori yang berbeda maju di babaknya masing-masing secara independen.
+ *
+ * Tiap heat punya `placement` per entrant (1, 2, 3, ... — kolom di pivot
+ * competition_match_entrants), diisi lewat klik BERURUTAN sesuai urutan finish
+ * ("klik pertama = peringkat 1", dst). Heat dianggap selesai begitu jumlah
+ * peringkat terisi mencapai `CompetitionMatch::requiredPlacements()` — 1 untuk
+ * partai Juara 3, sampai 3 untuk Final (Juara 1/2/3), atau `winners_per_heat`
+ * lomba ini untuk heat biasa (selalu 1 di mode "vs"). `winner_entrant_id` tetap
+ * disinkronkan ke entrant peringkat-1 supaya kode lama (isDecided/winnerEntrant)
+ * tidak perlu berubah.
  */
 class BracketGenerator
 {
@@ -34,7 +43,7 @@ class BracketGenerator
      * round/status/rank mereka ke awal). Kategori dengan entrant < 2 dilewati
      * (tidak cukup untuk bertanding). Tolak kalau bagan sudah ada.
      */
-    public function start(int $linesPerMatch): void
+    public function start(int $linesPerMatch, int $winnersPerHeat = 1): void
     {
         if ($linesPerMatch < 2) {
             throw new InvalidArgumentException('Jumlah peserta/tim per pertandingan minimal 2.');
@@ -50,17 +59,24 @@ class BracketGenerator
             throw new InvalidArgumentException('Minimal 2 peserta/tim dalam satu kategori untuk membuat bagan.');
         }
 
-        DB::transaction(function () use ($byCategory, $linesPerMatch) {
-            $this->competition->update(['bracket_lines_per_match' => $linesPerMatch]);
+        // Mode "vs" (1 lawan 1) selalu tepat 1 pemenang per heat — pengaturan
+        // "jumlah pemenang per heat" cuma relevan untuk papan heat multi-line.
+        $effectiveWinnersPerHeat = $linesPerMatch === 2 ? 1 : max(1, $winnersPerHeat);
+
+        DB::transaction(function () use ($byCategory, $linesPerMatch, $effectiveWinnersPerHeat) {
+            $this->competition->update([
+                'bracket_lines_per_match' => $linesPerMatch,
+                'winners_per_heat' => $effectiveWinnersPerHeat,
+            ]);
             $this->entrantQuery()->update(['round' => 1, 'status' => 'active', 'rank' => null]);
 
             foreach ($byCategory as $categoryKey => $pool) {
                 if ($linesPerMatch === 2) {
                     // Mode "vs" dipadatkan ke pangkat 2 terdekat (dengan bye) supaya
                     // bagan bisa dibagi rata kiri-kanan konvergen ke final.
-                    $this->createSeededTreeRound($categoryKey, $pool->shuffle());
+                    $this->createSeededTreeRound($categoryKey, $this->seedPool($pool));
                 } else {
-                    $this->createRound($categoryKey, 1, $pool->shuffle());
+                    $this->createRound($categoryKey, 1, $this->seedPool($pool));
                 }
             }
         });
@@ -112,9 +128,7 @@ class BracketGenerator
 
             $this->entrantQuery()->whereIn('id', $ids)->update(['round' => 1]);
 
-            if ($ids->count() === 1) {
-                $this->decideMatch($match, $ids->first());
-            }
+            $this->autoFinalizeIfTrivial($match, $ids);
         }
     }
 
@@ -141,7 +155,11 @@ class BracketGenerator
             throw new InvalidArgumentException('Masih ada heat di babak ini yang belum ada pemenangnya.');
         }
 
-        $winnerIds = $matches->pluck('winner_entrant_id')->filter()->values();
+        // Pemenang = entrant yang punya peringkat (bisa lebih dari 1 per heat kalau
+        // winners_per_heat > 1), bukan cuma winner_entrant_id (peringkat 1 saja).
+        $winnerIds = CompetitionMatchEntrant::whereIn('competition_match_id', $matches->pluck('id'))
+            ->whereNotNull('placement')
+            ->pluck('entrant_id');
 
         if ($winnerIds->count() <= 1) {
             throw new InvalidArgumentException('Kategori ini sudah selesai — hanya tersisa satu pemenang.');
@@ -151,7 +169,7 @@ class BracketGenerator
         $winners = $winnerIds->map(fn ($id) => $entrantsById->get($id))->filter()->values();
 
         DB::transaction(function () use ($categoryKey, $currentRound, $matches, $winners) {
-            $this->createRound($categoryKey, $currentRound + 1, $winners);
+            $this->createRound($categoryKey, $currentRound + 1, $this->seedPool($winners));
 
             // Transisi semifinal -> final di mode "vs": kalau babak sekarang persis
             // 2 heat dan keduanya pertandingan asli (bukan bye), buat juga partai
@@ -204,67 +222,134 @@ class BracketGenerator
     {
         DB::transaction(function () {
             $this->competition->matches()->delete();
-            $this->competition->update(['bracket_lines_per_match' => null]);
+            $this->competition->update(['bracket_lines_per_match' => null, 'winners_per_heat' => null]);
             $this->entrantQuery()->update(['round' => 1, 'status' => 'active', 'rank' => null]);
         });
     }
 
     /**
-     * Tandai pemenang sebuah heat — entrant lain di heat yang sama otomatis gugur
-     * (kecuali heat bye yang cuma berisi 1 orang, tidak ada yang perlu digugurkan).
-     * Kalau heat ini adalah Final atau partai Juara 3 kategori tersebut, rank 1/2/3
-     * otomatis ditetapkan juga — konsisten dengan tombol Juara di layar Peserta.
+     * Catat peringkat berikutnya seorang entrant di sebuah heat — dipanggil sekali
+     * per klik, sesuai urutan finish ("klik pertama" jadi peringkat 1, dst). Kalau
+     * ini melengkapi jumlah peringkat wajib heat ini (lihat
+     * `CompetitionMatch::requiredPlacements()`), heat otomatis "selesai": entrant
+     * yang tidak kebagian peringkat digugurkan, dan kalau ini Final/Juara-3, rank
+     * global 1/2/3 disinkronkan juga (dipakai layar Peserta & Juara / hadiah).
      */
-    public function decideMatch(CompetitionMatch $match, string $winnerEntrantId): void
+    public function recordPlacement(CompetitionMatch $match, string $entrantId): void
     {
         $entrantIds = $match->entrants()->pluck('entrant_id');
 
-        if (! $entrantIds->contains($winnerEntrantId)) {
+        if (! $entrantIds->contains($entrantId)) {
             throw new InvalidArgumentException('Peserta/tim ini bukan bagian dari heat ini.');
         }
 
-        $match->update(['winner_entrant_id' => $winnerEntrantId]);
+        $alreadyPlaced = $match->entrants()->where('entrant_id', $entrantId)->value('placement');
 
-        $loserIds = $entrantIds->reject(fn ($id) => $id === $winnerEntrantId);
+        if ($alreadyPlaced !== null) {
+            throw new InvalidArgumentException('Peserta/tim ini sudah punya peringkat di heat ini.');
+        }
 
-        if ($loserIds->isNotEmpty()) {
-            $this->entrantQuery()->whereIn('id', $loserIds)->update(['status' => 'eliminated']);
+        $placedCount = $match->entrants()->whereNotNull('placement')->count();
+        $match->entrants()->where('entrant_id', $entrantId)->update(['placement' => $placedCount + 1]);
+        $match->refresh();
+
+        $this->maybeAutoFillLastRemaining($match, $entrantIds);
+        $this->finalizeHeatIfReady($match, $entrantIds);
+    }
+
+    /**
+     * Kalau tepat 1 slot peringkat & 1 entrant yang tersisa (mis. setelah memilih
+     * Juara 1 dari duel 2 orang, sisanya cuma 1 kandidat buat Juara 2) — isi
+     * otomatis, tidak perlu klik lagi karena tidak ada pilihan lain yang mungkin.
+     * SENGAJA cuma jalan kalau kandidatnya persis 1 — kalau masih >1 kandidat buat
+     * >1 slot tersisa, urutannya di antara mereka tetap ambigu (penting buat heat
+     * yang berperingkat/Final, jangan ditebak).
+     */
+    protected function maybeAutoFillLastRemaining(CompetitionMatch $match, Collection $entrantIds): void
+    {
+        $required = $match->requiredPlacements();
+        $placedCount = $match->entrants()->whereNotNull('placement')->count();
+        $remainingSlots = $required - $placedCount;
+
+        if ($remainingSlots !== 1) {
+            return;
+        }
+
+        $unplacedIds = $match->entrants()->whereNull('placement')->pluck('entrant_id');
+
+        if ($unplacedIds->count() === 1) {
+            $match->entrants()->where('entrant_id', $unplacedIds->first())->update(['placement' => $placedCount + 1]);
+            $match->refresh();
+        }
+    }
+
+    /**
+     * Heat kecil yang otomatis "tanpa pilihan" — bye (1 entrant), atau heat biasa
+     * (bukan Final/Juara-3) yang jumlah entrant-nya sudah <= jumlah yang wajib
+     * lolos, jadi semuanya lolos tanpa perlu diklik satu-satu. TIDAK berlaku untuk
+     * heat berperingkat (Final/Juara-3) kecuali bye — urutan finish selalu perlu
+     * diklik manual di situ, karena posisi Juara 1/2/3 penting.
+     */
+    protected function autoFinalizeIfTrivial(CompetitionMatch $match, Collection $entrantIds): void
+    {
+        if ($entrantIds->count() === 1) {
+            $match->entrants()->where('entrant_id', $entrantIds->first())->update(['placement' => 1]);
+            $match->refresh();
+            $this->finalizeHeatIfReady($match, $entrantIds);
+            return;
+        }
+
+        $isRanked = $match->is_third_place || $match->isFinalMatch();
+        $required = $match->requiredPlacements();
+
+        if (! $isRanked && $entrantIds->count() <= $required) {
+            foreach ($entrantIds->values() as $index => $entrantId) {
+                $match->entrants()->where('entrant_id', $entrantId)->update(['placement' => $index + 1]);
+            }
+            $match->refresh();
+            $this->finalizeHeatIfReady($match, $entrantIds);
+        }
+    }
+
+    /**
+     * Kalau jumlah peringkat yang terisi sudah mencapai yang diwajibkan, tutup
+     * heat: sinkronkan winner_entrant_id (kompatibilitas kode lama), gugurkan
+     * entrant yang tidak kebagian peringkat, dan sinkronkan rank global untuk
+     * Final/Juara-3.
+     */
+    protected function finalizeHeatIfReady(CompetitionMatch $match, Collection $entrantIds): void
+    {
+        $required = $match->requiredPlacements();
+        $placedEntries = $match->entrants()->whereNotNull('placement')->orderBy('placement')->get();
+
+        if ($placedEntries->count() < $required) {
+            return; // belum cukup, masih menunggu klik lagi.
+        }
+
+        $winnerId = $placedEntries->firstWhere('placement', 1)?->entrant_id;
+        $match->update(['winner_entrant_id' => $winnerId]);
+
+        $advancingIds = $placedEntries->pluck('entrant_id');
+        $eliminatedIds = $entrantIds->diff($advancingIds);
+
+        if ($eliminatedIds->isNotEmpty()) {
+            $this->entrantQuery()->whereIn('id', $eliminatedIds)->update(['status' => 'eliminated']);
         }
 
         if ($match->is_third_place) {
-            $this->entrantQuery()->where('id', $winnerEntrantId)->update(['rank' => 3]);
-        } elseif ($this->isFinalMatch($match)) {
-            $this->entrantQuery()->where('id', $winnerEntrantId)->update(['rank' => 1]);
-
-            if ($loserIds->isNotEmpty()) {
-                $this->entrantQuery()->whereIn('id', $loserIds)->update(['rank' => 2]);
+            if ($winnerId) {
+                $this->entrantQuery()->where('id', $winnerId)->update(['rank' => 3]);
+            }
+        } elseif ($match->isFinalMatch()) {
+            foreach ($placedEntries as $entry) {
+                $this->entrantQuery()->where('id', $entry->entrant_id)->update(['rank' => $entry->placement]);
             }
         }
     }
 
     /**
-     * Heat ini adalah Final kategori tersebut: satu-satunya heat non-Juara-3 di
-     * babak terakhir KATEGORI ini (kategori lain punya babak terakhirnya sendiri).
-     */
-    protected function isFinalMatch(CompetitionMatch $match): bool
-    {
-        if ($match->is_third_place) {
-            return false;
-        }
-
-        $maxRound = $this->competition->matches()->where('category_key', $match->category_key)->max('round');
-
-        return $match->round === $maxRound
-            && $this->competition->matches()
-                ->where('category_key', $match->category_key)
-                ->where('round', $maxRound)
-                ->where('is_third_place', false)
-                ->count() === 1;
-    }
-
-    /**
-     * Batalkan pemenang sebuah heat — hanya boleh kalau babak berikutnya KATEGORI
-     * ini belum dibuat.
+     * Batalkan seluruh peringkat sebuah heat (bukan per-klik — reset heat ini dari
+     * awal) — hanya boleh kalau babak berikutnya KATEGORI ini belum dibuat.
      */
     public function undoMatch(CompetitionMatch $match): void
     {
@@ -280,11 +365,32 @@ class BracketGenerator
         $entrantIds = $match->entrants()->pluck('entrant_id');
         $this->entrantQuery()->whereIn('id', $entrantIds)->update(['status' => 'active']);
 
-        if ($match->is_third_place || $this->isFinalMatch($match)) {
+        if ($match->is_third_place || $match->isFinalMatch()) {
             $this->entrantQuery()->whereIn('id', $entrantIds)->update(['rank' => null]);
         }
 
+        $match->entrants()->update(['placement' => null]);
         $match->update(['winner_entrant_id' => null]);
+    }
+
+    /**
+     * Urutkan entrant supaya umur yang berdekatan cenderung masuk heat yang sama
+     * (permintaan panitia — kategori umur seperti "Dewasa 16+" tidak punya batas
+     * atas, jadi rentang umur di satu kategori bisa lebar). Diacak dulu sebagai
+     * tie-breaker acak untuk umur yang sama, baru diurutkan berdasar umur — sisa
+     * yang tidak bisa dikelompokkan rata otomatis jatuh ke heat/pasangan terakhir
+     * lewat groupIntoHeats()/createSeededTreeRound(). Lomba tim tidak punya kolom
+     * umur, jadi tetap acak biasa.
+     *
+     * @param  Collection<int, CompetitionParticipant|CompetitionTeam>  $pool
+     */
+    protected function seedPool(Collection $pool): Collection
+    {
+        if ($this->competition->isGroup()) {
+            return $pool->shuffle();
+        }
+
+        return $pool->shuffle()->sortBy(fn ($p) => $p->age ?? PHP_INT_MAX)->values();
     }
 
     protected function entrantQuery(): Builder
@@ -321,10 +427,7 @@ class BracketGenerator
             // Label "Babak N" tetap konsisten dengan layar Peserta & Juara yang sudah ada.
             $this->entrantQuery()->whereIn('id', $ids)->update(['round' => $round]);
 
-            // Heat cuma 1 orang (sisa ganjil) = bye, otomatis menang tanpa tanding.
-            if ($ids->count() === 1) {
-                $this->decideMatch($match, $ids->first());
-            }
+            $this->autoFinalizeIfTrivial($match, $ids);
         }
     }
 

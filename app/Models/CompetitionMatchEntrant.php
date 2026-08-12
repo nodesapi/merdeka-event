@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 #[Fillable([
     'competition_match_id',
     'entrant_id',
+    'placement',
 ])]
 class CompetitionMatchEntrant extends Model
 {

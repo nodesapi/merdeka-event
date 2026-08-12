@@ -1,45 +1,62 @@
-@props(['match', 'entrantsById', 'interactive' => false])
+@props(['match', 'entrantsById', 'interactive' => false, 'compact' => true])
 
 @php
     $entrants = $match->resolveEntrants($entrantsById);
     $decided = $match->isDecided();
     $isBye = $entrants->count() === 1;
+    $isRanked = $match->is_third_place || $match->isFinalMatch();
+    $hasAnyPlacement = $match->hasAnyPlacement();
+
+    $rowPad = $compact ? 'px-2 py-1' : 'px-4 py-3';
+    $textSize = $compact ? 'text-xs' : 'text-base';
+    $metaSize = $compact ? 'text-[10px]' : 'text-sm';
+    $iconSize = $compact ? 'h-3 w-3' : 'h-5 w-5';
+    $gap = $compact ? 'gap-1.5' : 'gap-2.5';
+
+    $medalLabel = [1 => 'Juara 1', 2 => 'Juara 2', 3 => 'Juara 3'];
+    $medalColor = [1 => 'text-amber-500', 2 => 'text-slate-400', 3 => 'text-amber-700'];
 @endphp
 
-<div class="w-full rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
+<div class="w-full rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden {{ $compact ? '' : 'shadow' }}">
     <div class="divide-y divide-slate-100">
         @forelse ($entrants as $entrant)
-            @php $isWinner = $decided && $match->winner_entrant_id === $entrant->id; @endphp
-            @if ($interactive && ! $decided && ! $isBye)
-                <button type="button" wire:click="decideWinner('{{ $match->id }}', '{{ $entrant->id }}')" class="flex w-full items-center justify-between gap-1.5 px-2 py-1 text-left text-xs hover:bg-red-50">
+            @php $placement = $match->placementFor($entrant->id); @endphp
+            @if ($interactive && ! $decided && $placement === null && ! $isBye)
+                <button type="button" wire:click="recordFinish('{{ $match->id }}', '{{ $entrant->id }}')" class="flex w-full items-center justify-between {{ $gap }} {{ $rowPad }} text-left {{ $textSize }} hover:bg-red-50 active:bg-red-100">
                     <span class="min-w-0 truncate font-medium text-slate-800">{{ $entrant->display_name }}</span>
                     @if ($entrant->bracket_meta)
-                        <span class="shrink-0 text-[10px] text-slate-400">{{ $entrant->bracket_meta }}</span>
+                        <span class="shrink-0 {{ $metaSize }} text-slate-400">{{ $entrant->bracket_meta }}</span>
                     @endif
                 </button>
             @else
-                <div class="flex items-center justify-between gap-1.5 px-2 py-1 text-xs {{ $isWinner ? 'bg-emerald-50' : ($decided ? 'opacity-50' : '') }}">
-                    <span class="flex min-w-0 items-center gap-1">
-                        @if ($isWinner)
-                            <x-icon name="trophy" class="h-3 w-3 shrink-0 text-amber-500" />
+                @php $isPlaced = $placement !== null; @endphp
+                <div class="flex items-center justify-between {{ $gap }} {{ $rowPad }} {{ $textSize }} {{ $isPlaced ? 'bg-emerald-50' : ($decided ? 'opacity-50' : '') }}">
+                    <span class="flex min-w-0 items-center gap-1.5">
+                        @if ($isPlaced && $isRanked && $placement <= 3)
+                            <x-icon name="{{ $placement === 1 ? 'trophy' : 'medal' }}" class="{{ $iconSize }} shrink-0 {{ $medalColor[$placement] }}" />
                         @endif
-                        <span class="truncate {{ $isWinner ? 'font-bold text-emerald-800' : 'font-medium text-slate-800' }} {{ ! $isWinner && $decided ? 'line-through' : '' }}">{{ $entrant->display_name }}</span>
+                        <span class="truncate {{ $isPlaced ? 'font-bold text-emerald-800' : 'font-medium text-slate-800' }} {{ ! $isPlaced && $decided ? 'line-through' : '' }}">{{ $entrant->display_name }}</span>
+                        @if ($isPlaced)
+                            <span class="shrink-0 {{ $metaSize }} font-bold uppercase tracking-wide {{ $isRanked ? ($medalColor[$placement] ?? 'text-emerald-600') : 'text-emerald-600' }}">
+                                {{ $isRanked ? ($medalLabel[$placement] ?? 'Peringkat ' . $placement) : 'Lolos' }}
+                            </span>
+                        @endif
                     </span>
                     @if ($entrant->bracket_meta)
-                        <span class="shrink-0 text-[10px] text-slate-400">{{ $entrant->bracket_meta }}</span>
+                        <span class="shrink-0 {{ $metaSize }} text-slate-400">{{ $entrant->bracket_meta }}</span>
                     @endif
                 </div>
             @endif
         @empty
-            <div class="px-2 py-2 text-center text-xs text-slate-300">Menunggu…</div>
+            <div class="px-2 py-2 text-center {{ $textSize }} text-slate-300">Menunggu…</div>
         @endforelse
         @if ($isBye && $decided)
-            <p class="px-2 pb-1 text-[10px] text-slate-400">Bye — otomatis lolos</p>
+            <p class="px-2 pb-1 {{ $metaSize }} text-slate-400">Bye — otomatis lolos</p>
         @endif
     </div>
-    @if ($interactive && $decided && ! $isBye)
-        <div class="border-t border-slate-100 px-2 py-1 text-right">
-            <button type="button" wire:click="undoMatch('{{ $match->id }}')" class="text-[10px] font-medium text-slate-400 hover:text-red-600">Batalkan</button>
+    @if ($interactive && $hasAnyPlacement && ! $isBye)
+        <div class="border-t border-slate-100 {{ $compact ? 'px-2 py-1' : 'px-4 py-2' }} text-right">
+            <button type="button" wire:click="undoMatch('{{ $match->id }}')" class="{{ $compact ? 'text-[10px]' : 'text-sm' }} font-medium text-slate-400 hover:text-red-600">Batalkan</button>
         </div>
     @endif
 </div>

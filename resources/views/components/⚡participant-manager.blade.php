@@ -40,6 +40,10 @@ new class extends Component
 
     // Kelompokkan peserta yang sudah daftar sendiri (pool "menunggu dikelompokkan") ke tim
     public array $assignTeamSelection = [];
+
+    // Masukkan banyak peserta sekaligus ke 1 tim (bulk assign, mempercepat pengelompokan)
+    public array $bulkSelectedParticipants = [];
+    public $bulkTargetTeamId = '';
     public $team_member_registration_number = '';
     public $team_member_name = '';
     public $team_member_resident_block = '';
@@ -247,6 +251,83 @@ new class extends Component
         $participant->update(['competition_team_id' => $team->id]);
         unset($this->assignTeamSelection[$participantId]);
         $this->success_message = $participant->name . ' dimasukkan ke ' . $team->display_name . '.';
+    }
+
+    /**
+     * Centang semua peserta yang sedang menunggu dikelompokkan (mempercepat bulk assign).
+     */
+    public function selectAllUnassigned(): void
+    {
+        $ids = CompetitionParticipant::where('competition_id', $this->competitionId)
+            ->whereNull('competition_team_id')
+            ->pluck('id');
+
+        foreach ($ids as $id) {
+            $this->bulkSelectedParticipants[$id] = true;
+        }
+    }
+
+    public function clearBulkSelection(): void
+    {
+        $this->bulkSelectedParticipants = [];
+    }
+
+    /**
+     * Masukkan semua peserta yang dicentang ke 1 tim tujuan sekaligus — mempercepat
+     * pengelompokan dibanding assignToTeam() satu-satu.
+     */
+    public function bulkAssignToTeam(): void
+    {
+        $participantIds = array_keys(array_filter($this->bulkSelectedParticipants));
+
+        if (empty($participantIds)) {
+            $this->addError('bulk_assign', 'Pilih minimal 1 peserta terlebih dahulu.');
+            return;
+        }
+
+        if ($this->bulkTargetTeamId === '') {
+            $this->addError('bulk_assign', 'Pilih tim tujuan terlebih dahulu.');
+            return;
+        }
+
+        $team = CompetitionTeam::where('competition_id', $this->competitionId)->findOrFail($this->bulkTargetTeamId);
+
+        $assignedCount = 0;
+        $skipped = [];
+
+        foreach ($participantIds as $participantId) {
+            $participant = CompetitionParticipant::where('competition_id', $this->competitionId)
+                ->whereNull('competition_team_id')
+                ->find($participantId);
+
+            if (! $participant) {
+                continue;
+            }
+
+            if ($team->gender_category !== null && $participant->gender !== null && $participant->gender !== $team->gender_category) {
+                $skipped[] = $participant->name . ' (kategori tidak sesuai ' . $team->gender_category_label . ')';
+                continue;
+            }
+
+            if ($this->maxTeamSize !== null && $team->members()->count() >= $this->maxTeamSize) {
+                $skipped[] = $participant->name . ' (' . $team->display_name . ' sudah penuh)';
+                continue;
+            }
+
+            $participant->update(['competition_team_id' => $team->id]);
+            $assignedCount++;
+        }
+
+        $this->bulkSelectedParticipants = [];
+        $this->bulkTargetTeamId = '';
+
+        if ($assignedCount > 0) {
+            $this->success_message = $assignedCount . ' peserta dimasukkan ke ' . $team->display_name . '.';
+        }
+
+        if (! empty($skipped)) {
+            $this->addError('bulk_assign', 'Dilewati: ' . implode(', ', $skipped) . '.');
+        }
     }
 
     /**
@@ -856,6 +937,25 @@ new class extends Component
                 <h4 class="font-semibold text-slate-900">Menunggu Dikelompokkan</h4>
                 <span class="text-xs px-2 py-0.5 bg-white text-slate-600 rounded border border-slate-200">{{ $unassigned->count() }} peserta</span>
             </div>
+            @if ($unassigned->count() > 0)
+                <div class="flex flex-wrap items-center gap-2 px-6 py-3 border-b border-slate-100 bg-amber-50/40">
+                    <button type="button" wire:click="selectAllUnassigned" class="text-xs font-medium text-red-600 hover:underline">Pilih Semua</button>
+                    <span class="text-slate-300">|</span>
+                    <button type="button" wire:click="clearBulkSelection" class="text-xs font-medium text-slate-500 hover:underline">Batalkan Pilihan</button>
+                    <span class="text-xs text-slate-400">({{ count(array_filter($bulkSelectedParticipants)) }} dipilih)</span>
+                    <div class="ml-auto flex items-center gap-2">
+                        <select wire:model="bulkTargetTeamId" data-custom-select class="w-48 px-3 py-2 border border-slate-300 rounded-md text-sm bg-white focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                            <option value="">— Pilih tim tujuan —</option>
+                            @foreach ($teams as $t)
+                                @php $isFull = $maxTeamSize !== null && $t->members->count() >= $maxTeamSize; @endphp
+                                <option value="{{ $t->id }}" @disabled($isFull)>{{ $t->display_name }} ({{ $t->members->count() }}{{ $maxTeamSize ? '/' . $maxTeamSize : '' }} anggota){{ $isFull ? ' — PENUH' : '' }}</option>
+                            @endforeach
+                        </select>
+                        <button wire:click="bulkAssignToTeam" class="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-medium shadow-sm">Masukkan yang Dipilih</button>
+                    </div>
+                    @error('bulk_assign') <div class="w-full text-xs text-red-600">{{ $message }}</div> @enderror
+                </div>
+            @endif
             @forelse ($unassignedByGender as $genderGroup)
                 @if ($unassignedByGender->count() > 1)
                     <div class="flex items-center gap-2 px-6 py-2 bg-slate-50/60 border-b border-slate-100">
@@ -865,20 +965,23 @@ new class extends Component
                 @endif
                 @foreach ($genderGroup as $p)
                     <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100 last:border-b-0">
-                        <div class="min-w-0">
-                            <div class="font-medium text-slate-900">
-                                {{ $p->name }}{{ $p->age !== null ? ' · ' . $p->age . ' th' : '' }}
-                                @if ($p->gender_label)
-                                    <span class="ml-1 text-[10px] font-bold uppercase tracking-wide {{ $p->gender === 'L' ? 'text-blue-600' : 'text-pink-600' }}">{{ $p->gender_label }}</span>
-                                @endif
-                            </div>
-                            <div class="mt-0.5 text-[11px] text-slate-400">
-                                @if ($p->familyMember?->registration_number)
-                                    No. Daftar: <span class="font-semibold text-slate-500">{{ $p->familyMember->registration_number }}</span>
-                                @else
-                                    Peserta manual
-                                @endif
-                                @if ($p->resident_block) · Blok {{ $p->resident_block }} @endif
+                        <div class="flex min-w-0 items-start gap-3">
+                            <input type="checkbox" wire:model="bulkSelectedParticipants.{{ $p->id }}" class="mt-1.5 h-4 w-4 shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500">
+                            <div class="min-w-0">
+                                <div class="font-medium text-slate-900">
+                                    {{ $p->name }}{{ $p->age !== null ? ' · ' . $p->age . ' th' : '' }}
+                                    @if ($p->gender_label)
+                                        <span class="ml-1 text-[10px] font-bold uppercase tracking-wide {{ $p->gender === 'L' ? 'text-blue-600' : 'text-pink-600' }}">{{ $p->gender_label }}</span>
+                                    @endif
+                                </div>
+                                <div class="mt-0.5 text-[11px] text-slate-400">
+                                    @if ($p->familyMember?->registration_number)
+                                        No. Daftar: <span class="font-semibold text-slate-500">{{ $p->familyMember->registration_number }}</span>
+                                    @else
+                                        Peserta manual
+                                    @endif
+                                    @if ($p->resident_block) · Blok {{ $p->resident_block }} @endif
+                                </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
