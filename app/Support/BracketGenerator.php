@@ -258,6 +258,31 @@ class BracketGenerator
     }
 
     /**
+     * Tutup heat biasa (BUKAN Final/Juara-3) lebih awal, walau belum mencapai
+     * `winners_per_heat` — dipakai kalau panitia sengaja cuma mau loloskan
+     * sebagian dari heat tertentu meski setting globalnya lebih besar (mis. lomba
+     * di-set 3 pemenang per heat, tapi di satu heat cuma 1 yang layak lolos).
+     * Heat lain di babak yang sama TIDAK ikut terpengaruh, tetap bisa diisi
+     * sampai penuh sesuai setting. Final/Juara-3 tidak boleh ditutup sebagian —
+     * urutannya harus lengkap supaya Juara 1/2/3 jelas buat pembagian hadiah.
+     */
+    public function finalizeHeatEarly(CompetitionMatch $match): void
+    {
+        if ($match->is_third_place || $match->isFinalMatch()) {
+            throw new InvalidArgumentException('Final dan partai Juara 3 harus diisi lengkap dulu, tidak bisa diselesaikan sebagian.');
+        }
+
+        $entrantIds = $match->entrants()->pluck('entrant_id');
+        $placedCount = $match->entrants()->whereNotNull('placement')->count();
+
+        if ($placedCount < 1) {
+            throw new InvalidArgumentException('Pilih minimal 1 pemenang dulu sebelum menyelesaikan heat ini.');
+        }
+
+        $this->finalizeHeatIfReady($match, $entrantIds, force: true);
+    }
+
+    /**
      * Kalau tepat 1 slot peringkat & 1 entrant yang tersisa (mis. setelah memilih
      * Juara 1 dari duel 2 orang, sisanya cuma 1 kandidat buat Juara 2) — isi
      * otomatis, tidak perlu klik lagi karena tidak ada pilihan lain yang mungkin.
@@ -317,12 +342,12 @@ class BracketGenerator
      * entrant yang tidak kebagian peringkat, dan sinkronkan rank global untuk
      * Final/Juara-3.
      */
-    protected function finalizeHeatIfReady(CompetitionMatch $match, Collection $entrantIds): void
+    protected function finalizeHeatIfReady(CompetitionMatch $match, Collection $entrantIds, bool $force = false): void
     {
         $required = $match->requiredPlacements();
         $placedEntries = $match->entrants()->whereNotNull('placement')->orderBy('placement')->get();
 
-        if ($placedEntries->count() < $required) {
+        if (! $force && $placedEntries->count() < $required) {
             return; // belum cukup, masih menunggu klik lagi.
         }
 

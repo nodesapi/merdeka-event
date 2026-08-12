@@ -67,6 +67,23 @@ new class extends Component
         }
     }
 
+    /**
+     * Tutup heat biasa lebih awal walau belum sejumlah "winners_per_heat" global —
+     * dipakai kalau di heat TERTENTU cuma sebagian yang mau diloloskan meski
+     * setting lomba ini lebih besar. Heat lain tetap bisa diisi penuh seperti biasa.
+     */
+    public function finalizeHeatEarly(string $matchId)
+    {
+        try {
+            $match = CompetitionMatch::where('competition_id', $this->competitionId)->findOrFail($matchId);
+            (new BracketGenerator($this->competition()))->finalizeHeatEarly($match);
+            $this->success_message = '';
+            $this->error_message = '';
+        } catch (\InvalidArgumentException $e) {
+            $this->error_message = $e->getMessage();
+        }
+    }
+
     public function undoMatch(string $matchId)
     {
         try {

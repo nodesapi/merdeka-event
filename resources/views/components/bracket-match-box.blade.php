@@ -6,6 +6,8 @@
     $isBye = $entrants->count() === 1;
     $isRanked = $match->is_third_place || $match->isFinalMatch();
     $hasAnyPlacement = $match->hasAnyPlacement();
+    $placedCount = $match->entrants->filter(fn ($e) => $e->placement !== null)->count();
+    $canFinalizeEarly = $interactive && ! $decided && ! $isRanked && ! $isBye && $placedCount >= 1;
 
     $rowPad = $compact ? 'px-2 py-1' : 'px-4 py-3';
     $textSize = $compact ? 'text-xs' : 'text-base';
@@ -55,7 +57,12 @@
         @endif
     </div>
     @if ($interactive && $hasAnyPlacement && ! $isBye)
-        <div class="border-t border-slate-100 {{ $compact ? 'px-2 py-1' : 'px-4 py-2' }} text-right">
+        <div class="border-t border-slate-100 {{ $compact ? 'px-2 py-1' : 'px-4 py-2' }} flex items-center justify-between gap-2">
+            @if ($canFinalizeEarly)
+                <button type="button" wire:click="finalizeHeatEarly('{{ $match->id }}')" class="{{ $compact ? 'text-[10px]' : 'text-sm' }} font-semibold text-emerald-600 hover:text-emerald-800">Selesaikan Heat ({{ $placedCount }} lolos)</button>
+            @else
+                <span></span>
+            @endif
             <button type="button" wire:click="undoMatch('{{ $match->id }}')" class="{{ $compact ? 'text-[10px]' : 'text-sm' }} font-medium text-slate-400 hover:text-red-600">Batalkan</button>
         </div>
     @endif
