@@ -272,6 +272,34 @@ new class extends Component
         $this->bulkSelectedParticipants = [];
     }
 
+    public function confirmBulkDelete(): void
+    {
+        $count = count(array_filter($this->bulkSelectedParticipants));
+
+        if ($count === 0) {
+            $this->addError('bulk_delete', 'Pilih minimal 1 peserta terlebih dahulu.');
+            return;
+        }
+
+        $this->confirmDelete('bulk', $count . ' peserta terpilih', 'bulkDeleteSelected');
+    }
+
+    /**
+     * Hapus semua peserta yang dicentang sekaligus. $id diabaikan — dipanggil lewat
+     * ConfirmsDeletion::executeDelete() yang selalu mengirim argumen posisi.
+     */
+    public function bulkDeleteSelected(string $id = null): void
+    {
+        $participantIds = array_keys(array_filter($this->bulkSelectedParticipants));
+
+        $count = CompetitionParticipant::where('competition_id', $this->competitionId)
+            ->whereIn('id', $participantIds)
+            ->delete();
+
+        $this->bulkSelectedParticipants = [];
+        $this->success_message = $count . ' peserta dihapus.';
+    }
+
     /**
      * Masukkan semua peserta yang dicentang ke 1 tim tujuan sekaligus — mempercepat
      * pengelompokan dibanding assignToTeam() satu-satu.
@@ -749,7 +777,7 @@ new class extends Component
 
         <!-- Peserta dikelompokkan otomatis per kategori umur (fairness) -->
         @forelse ($participantsByCategory as $categoryKey => $participants)
-        <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
+        <div wire:key="category-{{ $categoryKey }}" class="bg-white rounded-xl border border-slate-200 shadow-sm mb-6 overflow-hidden">
             <div class="flex items-center gap-2 px-6 py-3 border-b border-slate-100 bg-slate-50">
                 <span class="w-2 h-4 bg-red-600 rounded"></span>
                 <h4 class="font-semibold text-slate-900">Kategori {{ $participants->first()->display_category_label }}</h4>
@@ -770,7 +798,7 @@ new class extends Component
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @foreach ($participants as $i => $p)
-                            <tr class="hover:bg-slate-50/60">
+                            <tr wire:key="participant-{{ $p->id }}" class="hover:bg-slate-50/60">
                                 <td class="px-4 py-3 text-slate-400">{{ $i + 1 }}</td>
                                 <td class="px-4 py-3">
                                     <div class="font-medium text-slate-900">{{ $p->name }}</div>
@@ -952,19 +980,21 @@ new class extends Component
                             @endforeach
                         </select>
                         <button wire:click="bulkAssignToTeam" class="shrink-0 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-xs font-medium shadow-sm">Masukkan yang Dipilih</button>
+                        <button wire:click="confirmBulkDelete" class="shrink-0 px-4 py-2 border border-red-200 text-red-600 rounded-md text-xs font-medium hover:bg-red-50">Hapus yang Dipilih</button>
                     </div>
                     @error('bulk_assign') <div class="w-full text-xs text-red-600">{{ $message }}</div> @enderror
+                    @error('bulk_delete') <div class="w-full text-xs text-red-600">{{ $message }}</div> @enderror
                 </div>
             @endif
             @forelse ($unassignedByGender as $genderGroup)
                 @if ($unassignedByGender->count() > 1)
-                    <div class="flex items-center gap-2 px-6 py-2 bg-slate-50/60 border-b border-slate-100">
+                    <div wire:key="unassigned-gender-{{ $genderGroup->first()->gender ?? 'none' }}" class="flex items-center gap-2 px-6 py-2 bg-slate-50/60 border-b border-slate-100">
                         <span class="text-[11px] font-bold uppercase tracking-wide text-slate-500">{{ $genderGroup->first()->gender_label ?? 'Gender tidak diketahui' }}</span>
                         <span class="text-xs px-2 py-0.5 bg-white text-slate-600 rounded border border-slate-200">{{ $genderGroup->count() }} peserta</span>
                     </div>
                 @endif
                 @foreach ($genderGroup as $p)
-                    <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100 last:border-b-0">
+                    <div wire:key="unassigned-row-{{ $p->id }}" class="flex flex-wrap items-center justify-between gap-3 px-6 py-3 border-b border-slate-100 last:border-b-0">
                         <div class="flex min-w-0 items-start gap-3">
                             <input type="checkbox" wire:model="bulkSelectedParticipants.{{ $p->id }}" class="mt-1.5 h-4 w-4 shrink-0 rounded border-slate-300 text-red-600 focus:ring-red-500">
                             <div class="min-w-0">
@@ -1006,7 +1036,7 @@ new class extends Component
 
         <!-- Daftar tim, dikelompokkan per kategori Putra/Putri (fairness, mirip kategori umur) -->
         @forelse ($teamsByGender as $groupTeams)
-            <div class="mb-6">
+            <div wire:key="teamgroup-{{ $groupTeams->first()->gender_category ?? 'none' }}" class="mb-6">
                 @if ($teamsByGender->count() > 1)
                     <div class="mb-3 flex items-center gap-2">
                         <span class="w-2 h-4 bg-red-600 rounded"></span>
@@ -1016,7 +1046,7 @@ new class extends Component
                 @endif
 
                 @foreach ($groupTeams as $team)
-                    <div class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
+                    <div wire:key="team-{{ $team->id }}" class="bg-white rounded-xl border border-slate-200 shadow-sm mb-4 overflow-hidden">
                         <div class="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
                             <div class="min-w-0">
                                 @if ($editingTeamNameId === $team->id)
@@ -1088,7 +1118,7 @@ new class extends Component
                             <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Anggota</p>
                             <div class="flex flex-wrap gap-1.5">
                                 @forelse ($team->members as $member)
-                                    <span class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
+                                    <span wire:key="member-{{ $member->id }}" class="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700">
                                         {{ $member->name }}{{ $member->age !== null ? ' · ' . $member->age . ' th' : '' }}
                                         <button wire:click="unassignFromTeam('{{ $member->id }}')" class="text-slate-400 hover:text-amber-600" title="Keluarkan dari tim (tetap muncul di Menunggu Dikelompokkan)"><x-icon name="arrow-uturn-left" class="h-3.5 w-3.5" /></button>
                                     </span>
