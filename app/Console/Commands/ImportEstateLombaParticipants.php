@@ -60,8 +60,8 @@ class ImportEstateLombaParticipants extends Command
 
     /**
      * Tim Security semua laki-laki di semua lomba. Tim Taman campuran — cuma
-     * Edah, Iyos, Narsih perempuan, sisanya laki-laki. Sama untuk semua lomba
-     * (bukan per-lomba), sesuai data dari panitia.
+     * Edah, Narsih perempuan (Iyos dikoreksi laki-laki), sisanya laki-laki.
+     * Sama untuk semua lomba (bukan per-lomba), sesuai data dari panitia.
      */
     private function genderFor(string $teamLabel, string $name): string
     {
@@ -69,7 +69,7 @@ class ImportEstateLombaParticipants extends Command
             return 'L';
         }
 
-        return in_array($name, ['Edah', 'Iyos', 'Narsih'], true) ? 'P' : 'L';
+        return in_array($name, ['Edah', 'Narsih'], true) ? 'P' : 'L';
     }
 
     public function handle(): int
@@ -251,8 +251,9 @@ class ImportEstateLombaParticipants extends Command
      * ini aman dijalankan berkali-kali tanpa membuat data dobel, tapi tetap bisa
      * membuat 2 baris untuk 2 orang berbeda yang kebetulan namanya sama persis.
      *
-     * Juga membackfill gender ke baris yang sudah dibuat di run sebelumnya
-     * (sebelum kolom gender ada) dan masih kosong, dan MEMANGKAS kelebihan
+     * Juga menyamakan gender baris yang sudah ada dengan genderFor() saat ini
+     * (baik yang masih kosong maupun yang sudah keisi tapi ternyata salah,
+     * mis. koreksi data dari panitia), dan MEMANGKAS kelebihan
      * duplikat (mis. dari "Hapus Tim" yang melepas anggota balik ke Menunggu
      * Dikelompokkan, numpuk sama batch yang sudah dibuat sebelumnya). Cuma
      * baris yang masih "belum ditempatkan ke tim" yang boleh dihapus — yang
@@ -299,7 +300,7 @@ class ImportEstateLombaParticipants extends Command
 
             $backfilled = 0;
             foreach ($existing as $row) {
-                if ($row->getRawOriginal('gender') === null) {
+                if ($row->getRawOriginal('gender') !== $gender) {
                     $row->update(['gender' => $gender]);
                     $backfilled++;
                 }
