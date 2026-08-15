@@ -25,7 +25,7 @@ use Throwable;
  */
 class ImportEstateLombaParticipants extends Command
 {
-    protected $signature = 'lomba:import-estate {--dry-run : Preview tanpa menyimpan apa pun ke database} {--event= : Slug Event, wajib diisi kalau ada lebih dari 1 Event}';
+    protected $signature = 'lomba:import-estate {--dry-run : Preview tanpa menyimpan apa pun ke database} {--event= : Slug Event, wajib diisi kalau ada lebih dari 1 Event} {--list : Cuma tampilkan semua nama lomba yang ada di event ini, lalu keluar}';
 
     protected $description = 'Import peserta non-warga (Tim Taman & Tim Security) ke lomba yang sudah ada';
 
@@ -74,6 +74,12 @@ class ImportEstateLombaParticipants extends Command
 
         if (! $event) {
             return self::FAILURE;
+        }
+
+        if ($this->option('list')) {
+            $this->listCompetitions($event);
+
+            return self::SUCCESS;
         }
 
         $dryRun = (bool) $this->option('dry-run');
@@ -142,6 +148,22 @@ class ImportEstateLombaParticipants extends Command
         return self::SUCCESS;
     }
 
+    private function listCompetitions(Event $event): void
+    {
+        $competitions = Competition::where('event_id', $event->id)->orderBy('name')->get(['name', 'slug', 'type']);
+
+        if ($competitions->isEmpty()) {
+            $this->warn('Tidak ada lomba di event ini.');
+
+            return;
+        }
+
+        $this->info('Daftar lomba di event "' . $event->name . '":');
+        foreach ($competitions as $competition) {
+            $this->line('  - ' . $competition->name . ' (slug: ' . $competition->slug . ', tipe: ' . $competition->type . ')');
+        }
+    }
+
     private function resolveEvent(): ?Event
     {
         $slug = $this->option('event');
@@ -189,6 +211,19 @@ class ImportEstateLombaParticipants extends Command
                 $matches = Competition::where('event_id', $event->id)
                     ->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($competitionName) . '%'])
                     ->get();
+
+                // Semua peserta di roster ini umurnya dianggap Dewasa. Kalau nama lomba
+                // dipecah per kategori umur (mis. "Bola Sarung (Anak/Remaja/Dewasa)"),
+                // otomatis pilih varian Dewasa-nya daripada memaksa user tentukan manual.
+                if ($matches->count() > 1) {
+                    $dewasaOnly = $matches->filter(
+                        fn (Competition $c) => str_contains(mb_strtolower($c->name), 'dewasa')
+                    );
+
+                    if ($dewasaOnly->count() === 1) {
+                        $matches = $dewasaOnly->values();
+                    }
+                }
 
                 if ($matches->count() !== 1) {
                     $errors[] = sprintf(
