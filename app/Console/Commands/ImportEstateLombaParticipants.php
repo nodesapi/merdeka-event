@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\Competition;
 use App\Models\CompetitionParticipant;
-use App\Models\CompetitionTeam;
 use App\Models\Event;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +21,12 @@ use Throwable;
  * Aman dijalankan berulang kali: sebelum insert, command menghitung selisih
  * antara jumlah nama di roster vs jumlah baris yang sudah ada di database,
  * dan hanya membuat selisihnya. Selalu jalankan --dry-run dulu untuk preview.
+ *
+ * Untuk lomba beregu, peserta SENGAJA dibuat tanpa tim (competition_team_id
+ * null / "belum ditempatkan") — bukan langsung dibungkus 1 tim besar. Ukuran
+ * tim (mis. maks 5 orang per regu tarik tambang) adalah keputusan panitia,
+ * jadi pengelompokan ke tim yang benar dilakukan manual lewat admin panel
+ * (fitur "assign ke tim" pada peserta yang belum ditempatkan).
  */
 class ImportEstateLombaParticipants extends Command
 {
@@ -106,21 +111,10 @@ class ImportEstateLombaParticipants extends Command
                 $this->newLine();
                 $competition = $item['competition'];
                 $isGroup = $competition->isGroup();
-                $this->line("{$item['team_label']} -> {$competition->name}" . ($isGroup ? ' (lomba beregu)' : ' (lomba perorangan)'));
-
-                $teamId = null;
-
-                if ($isGroup) {
-                    $team = CompetitionTeam::firstOrCreate(
-                        ['competition_id' => $competition->id, 'team_name' => $item['team_label']],
-                        ['round' => 1, 'status' => 'active']
-                    );
-                    $teamId = $team->id;
-                }
+                $this->line("{$item['team_label']} -> {$competition->name}" . ($isGroup ? ' (lomba beregu — peserta dibuat belum ditempatkan ke tim)' : ' (lomba perorangan)'));
 
                 $totalCreated += $this->syncNames(
                     $competition->id,
-                    $teamId,
                     $item['names'],
                     $item['team_label'],
                     $item['note'],
@@ -258,7 +252,7 @@ class ImportEstateLombaParticipants extends Command
      *
      * @param array<int, string> $names
      */
-    private function syncNames(string $competitionId, ?string $teamId, array $names, string $teamLabel, ?string $note, bool $dryRun): int
+    private function syncNames(string $competitionId, array $names, string $teamLabel, ?string $note, bool $dryRun): int
     {
         $targetCounts = [];
 
@@ -274,12 +268,8 @@ class ImportEstateLombaParticipants extends Command
             $existingCount = CompetitionParticipant::where('competition_id', $competitionId)
                 ->where('resident_block', $teamLabel)
                 ->whereNull('family_member_id')
+                ->whereNull('competition_team_id')
                 ->where('name', $name)
-                ->when(
-                    $teamId,
-                    fn ($query) => $query->where('competition_team_id', $teamId),
-                    fn ($query) => $query->whereNull('competition_team_id')
-                )
                 ->count();
 
             $toCreate = max(0, $targetCount - $existingCount);
@@ -293,7 +283,6 @@ class ImportEstateLombaParticipants extends Command
             for ($i = 0; $i < $toCreate; $i++) {
                 CompetitionParticipant::create([
                     'competition_id' => $competitionId,
-                    'competition_team_id' => $teamId,
                     'name' => $name,
                     'resident_block' => $teamLabel,
                     'age' => $this->defaultAge,
