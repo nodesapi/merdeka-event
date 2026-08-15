@@ -311,10 +311,14 @@ class ImportEstateLombaParticipants extends Command
         return $created;
     }
 
+    /**
+     * Nama di roster() sudah ditulis dengan kapitalisasi yang benar secara manual
+     * (mis. "M.Robi", bukan "M.ROBI") — di sini cuma rapikan spasi, jangan ubah
+     * huruf besar/kecil (mb_convert_case akan salah pada kata majemuk tanpa spasi
+     * seperti "M.Robi" -> "M.robi").
+     */
     private function titleCase(string $name): string
     {
-        $name = trim(preg_replace('/\s+/', ' ', $name));
-
-        return mb_convert_case($name, MB_CASE_TITLE, 'UTF-8');
+        return trim(preg_replace('/\s+/', ' ', $name));
     }
 }
