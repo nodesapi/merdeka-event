@@ -42,7 +42,7 @@ class ImportEstateLombaParticipants extends Command
                 'Estafet Sarung' => ['Edah', 'Iyos', 'Narsih'],
                 'Kait Nusantara' => ['Iyos', 'Dede', 'Madi', 'Edah'],
                 'Makan Kerupuk' => ['Iyos', 'Madi', 'Andi', 'Narsih', 'Edah'],
-                'Pindah Tepung/Air' => ['Nurdin', 'Dadi', 'Rehan', 'Madi', 'Andi', 'Dede', 'Iyos', 'Narsih', 'Edah'],
+                'Pindah Tepung' => ['Nurdin', 'Dadi', 'Rehan', 'Madi', 'Andi', 'Dede', 'Iyos', 'Narsih', 'Edah'],
                 'Tarik Tambang' => ['Andi', 'Nurdin', 'Dani', 'Madi', 'Dede', 'Rehan'],
             ],
             'Tim Security' => [
@@ -63,7 +63,7 @@ class ImportEstateLombaParticipants extends Command
     {
         return [
             'Tim Taman' => [
-                'Pindah Tepung/Air' => 'Perempuan',
+                'Pindah Tepung' => 'Perempuan',
             ],
         ];
     }
