@@ -28,6 +28,10 @@ new class extends Component
     public $editAge = null;
     public string $editGender = '';
 
+    // Edit blok/alamat rumah inline per keluarga.
+    public ?string $editingBlockId = null;
+    public string $editBlockValue = '';
+
     protected function activeEvent(): ?Event
     {
         return Event::where('status', 'active')->latest('start_date')->first()
@@ -136,6 +140,33 @@ new class extends Component
 
         $this->success_message = 'Data anggota "' . $member->name . '" berhasil diperbarui.';
         $this->cancelEditMember();
+    }
+
+    public function startEditBlock(string $submissionId): void
+    {
+        $submission = FamilySubmission::findOrFail($submissionId);
+
+        $this->editingBlockId = $submission->id;
+        $this->editBlockValue = $submission->resident_block ?? '';
+        $this->resetErrorBag();
+    }
+
+    public function cancelEditBlock(): void
+    {
+        $this->reset(['editingBlockId', 'editBlockValue']);
+    }
+
+    public function updateBlock(): void
+    {
+        $data = $this->validate([
+            'editBlockValue' => 'required|string|max:100',
+        ], [], ['editBlockValue' => 'blok/alamat rumah']);
+
+        $submission = FamilySubmission::findOrFail($this->editingBlockId);
+        $submission->update(['resident_block' => $data['editBlockValue']]);
+
+        $this->success_message = 'Blok/alamat "' . $submission->head_of_family_name . '" berhasil diperbarui.';
+        $this->cancelEditBlock();
     }
 
     public function dismissAlert(): void
@@ -247,7 +278,18 @@ new class extends Component
                                 <div class="flex flex-wrap items-center justify-between gap-2">
                                     <div class="flex flex-wrap items-center gap-x-3 gap-y-1.5">
                                         <span class="text-sm font-bold text-slate-900">Keluarga {{ $submission->head_of_family_name }}</span>
-                                        <span class="rounded-md border border-red-100 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Blok {{ $submission->resident_block ?: '-' }}</span>
+                                        @if ($editingBlockId === $submission->id)
+                                            <form wire:submit.prevent="updateBlock" class="flex items-center gap-1.5">
+                                                <input type="text" wire:model="editBlockValue" autofocus class="w-32 rounded-md border border-slate-300 px-2 py-1 text-xs outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500" placeholder="A/12">
+                                                <button type="submit" class="rounded-md bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">Simpan</button>
+                                                <button type="button" wire:click="cancelEditBlock" class="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-50">Batal</button>
+                                            </form>
+                                            @error('editBlockValue') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                                        @else
+                                            <button type="button" wire:click="startEditBlock('{{ $submission->id }}')" class="rounded-md border border-red-100 bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 hover:bg-red-100" title="Klik untuk ubah blok/alamat">
+                                                Blok {{ $submission->resident_block ?: '-' }} <span class="text-red-400">✎</span>
+                                            </button>
+                                        @endif
                                         <span class="h-3.5 w-px bg-slate-300"></span>
                                         <span class="font-mono text-xs text-slate-500">{{ $submission->reference_code }}</span>
                                         <span class="h-3.5 w-px bg-slate-300"></span>
