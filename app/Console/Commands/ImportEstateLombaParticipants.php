@@ -105,6 +105,7 @@ class ImportEstateLombaParticipants extends Command
 
         try {
             $totalCreated = 0;
+            $totalDeleted = 0;
 
             foreach ($plan as $item) {
                 $this->newLine();
@@ -112,12 +113,15 @@ class ImportEstateLombaParticipants extends Command
                 $isGroup = $competition->isGroup();
                 $this->line("{$item['team_label']} -> {$competition->name}" . ($isGroup ? ' (lomba beregu — peserta dibuat belum ditempatkan ke tim)' : ' (lomba perorangan)'));
 
-                $totalCreated += $this->syncNames(
+                $result = $this->syncNames(
                     $competition->id,
                     $item['names'],
                     $item['team_label'],
                     $dryRun
                 );
+
+                $totalCreated += $result['created'];
+                $totalDeleted += $result['deleted'];
             }
         } catch (Throwable $e) {
             DB::rollBack();
@@ -130,11 +134,11 @@ class ImportEstateLombaParticipants extends Command
 
         if ($dryRun) {
             DB::rollBack();
-            $this->warn("[DRY RUN] Tidak ada perubahan disimpan ke database. Total baris yang AKAN dibuat: {$totalCreated}.");
+            $this->warn("[DRY RUN] Tidak ada perubahan disimpan ke database. Baris yang AKAN dibuat: {$totalCreated}, baris duplikat yang AKAN dihapus: {$totalDeleted}.");
             $this->line('Jalankan lagi tanpa --dry-run untuk benar-benar menyimpan.');
         } else {
             DB::commit();
-            $this->info("Selesai. Total baris peserta baru dibuat: {$totalCreated}.");
+            $this->info("Selesai. Baris peserta baru dibuat: {$totalCreated}, duplikat berlebih dihapus: {$totalDeleted}.");
         }
 
         return self::SUCCESS;
@@ -248,11 +252,16 @@ class ImportEstateLombaParticipants extends Command
      * membuat 2 baris untuk 2 orang berbeda yang kebetulan namanya sama persis.
      *
      * Juga membackfill gender ke baris yang sudah dibuat di run sebelumnya
-     * (sebelum kolom gender ada) dan masih kosong.
+     * (sebelum kolom gender ada) dan masih kosong, dan MEMANGKAS kelebihan
+     * duplikat (mis. dari "Hapus Tim" yang melepas anggota balik ke Menunggu
+     * Dikelompokkan, numpuk sama batch yang sudah dibuat sebelumnya). Cuma
+     * baris yang masih "belum ditempatkan ke tim" yang boleh dihapus — yang
+     * sudah di-assign panitia ke tim tidak pernah kesentuh.
      *
      * @param array<int, string> $names
+     * @return array{created:int, deleted:int}
      */
-    private function syncNames(string $competitionId, array $names, string $teamLabel, bool $dryRun): int
+    private function syncNames(string $competitionId, array $names, string $teamLabel, bool $dryRun): array
     {
         $targetCounts = [];
 
@@ -262,6 +271,7 @@ class ImportEstateLombaParticipants extends Command
         }
 
         $created = 0;
+        $deleted = 0;
         $prefix = $dryRun ? '  [DRY RUN] ' : '  ';
 
         foreach ($targetCounts as $name => $targetCount) {
@@ -272,7 +282,20 @@ class ImportEstateLombaParticipants extends Command
                 ->whereNull('family_member_id')
                 ->whereNull('competition_team_id')
                 ->where('name', $name)
+                ->orderBy('created_at')
                 ->get();
+
+            $excessCount = max(0, $existing->count() - $targetCount);
+
+            if ($excessCount > 0) {
+                // Simpan yang paling lama (kemungkinan besar yang pertama kali dibuat),
+                // hapus sisanya yang paling baru — semuanya identik, tidak ada bedanya
+                // data mana yang dibuang, yang penting jumlah akhirnya pas.
+                $toDelete = $existing->slice(-$excessCount);
+                CompetitionParticipant::whereIn('id', $toDelete->pluck('id'))->delete();
+                $existing = $existing->slice(0, $existing->count() - $excessCount)->values();
+                $deleted += $excessCount;
+            }
 
             $backfilled = 0;
             foreach ($existing as $row) {
@@ -302,6 +325,9 @@ class ImportEstateLombaParticipants extends Command
             if ($toCreate > 0) {
                 $messageParts[] = "dibuat {$toCreate} baris baru";
             }
+            if ($excessCount > 0) {
+                $messageParts[] = "dihapus {$excessCount} duplikat berlebih";
+            }
             if ($backfilled > 0) {
                 $messageParts[] = "diperbarui gender {$backfilled} baris lama";
             }
@@ -311,7 +337,7 @@ class ImportEstateLombaParticipants extends Command
                 : "{$prefix}- {$name}: " . implode(', ', $messageParts) . '.');
         }
 
-        return $created;
+        return ['created' => $created, 'deleted' => $deleted];
     }
 
     /**
