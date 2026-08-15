@@ -59,18 +59,17 @@ class ImportEstateLombaParticipants extends Command
     }
 
     /**
-     * Catatan tambahan per (team_label, nama_lomba) — dokumentasi saja, tidak
-     * memengaruhi pengelompokan otomatis (peserta manual tidak punya field gender).
-     *
-     * @return array<string, array<string, string>>
+     * Tim Security semua laki-laki di semua lomba. Tim Taman campuran — cuma
+     * Edah, Iyos, Narsih perempuan, sisanya laki-laki. Sama untuk semua lomba
+     * (bukan per-lomba), sesuai data dari panitia.
      */
-    private function notesFor(): array
+    private function genderFor(string $teamLabel, string $name): string
     {
-        return [
-            'Tim Taman' => [
-                'Pindah Tepung' => 'Perempuan',
-            ],
-        ];
+        if ($teamLabel === 'Tim Security') {
+            return 'L';
+        }
+
+        return in_array($name, ['Edah', 'Iyos', 'Narsih'], true) ? 'P' : 'L';
     }
 
     public function handle(): int
@@ -117,7 +116,6 @@ class ImportEstateLombaParticipants extends Command
                     $competition->id,
                     $item['names'],
                     $item['team_label'],
-                    $item['note'],
                     $dryRun
                 );
             }
@@ -193,7 +191,7 @@ class ImportEstateLombaParticipants extends Command
     }
 
     /**
-     * @return array{0: array<int, array{team_label:string, competition:Competition, names:array<int,string>, note:?string}>, 1: array<int,string>}
+     * @return array{0: array<int, array{team_label:string, competition:Competition, names:array<int,string>}>, 1: array<int,string>}
      */
     private function buildPlan(Event $event): array
     {
@@ -236,7 +234,6 @@ class ImportEstateLombaParticipants extends Command
                     'team_label' => $teamLabel,
                     'competition' => $matches->first(),
                     'names' => $names,
-                    'note' => $this->notesFor()[$teamLabel][$competitionName] ?? null,
                 ];
             }
         }
@@ -250,9 +247,12 @@ class ImportEstateLombaParticipants extends Command
      * ini aman dijalankan berkali-kali tanpa membuat data dobel, tapi tetap bisa
      * membuat 2 baris untuk 2 orang berbeda yang kebetulan namanya sama persis.
      *
+     * Juga membackfill gender ke baris yang sudah dibuat di run sebelumnya
+     * (sebelum kolom gender ada) dan masih kosong.
+     *
      * @param array<int, string> $names
      */
-    private function syncNames(string $competitionId, array $names, string $teamLabel, ?string $note, bool $dryRun): int
+    private function syncNames(string $competitionId, array $names, string $teamLabel, bool $dryRun): int
     {
         $targetCounts = [];
 
@@ -265,20 +265,24 @@ class ImportEstateLombaParticipants extends Command
         $prefix = $dryRun ? '  [DRY RUN] ' : '  ';
 
         foreach ($targetCounts as $name => $targetCount) {
-            $existingCount = CompetitionParticipant::where('competition_id', $competitionId)
+            $gender = $this->genderFor($teamLabel, $name);
+
+            $existing = CompetitionParticipant::where('competition_id', $competitionId)
                 ->where('resident_block', $teamLabel)
                 ->whereNull('family_member_id')
                 ->whereNull('competition_team_id')
                 ->where('name', $name)
-                ->count();
+                ->get();
 
-            $toCreate = max(0, $targetCount - $existingCount);
-
-            if ($toCreate === 0) {
-                $this->line("{$prefix}- {$name}: sudah ada di database ({$existingCount}), dilewati.");
-
-                continue;
+            $backfilled = 0;
+            foreach ($existing as $row) {
+                if ($row->getRawOriginal('gender') === null) {
+                    $row->update(['gender' => $gender]);
+                    $backfilled++;
+                }
             }
+
+            $toCreate = max(0, $targetCount - $existing->count());
 
             for ($i = 0; $i < $toCreate; $i++) {
                 CompetitionParticipant::create([
@@ -286,15 +290,25 @@ class ImportEstateLombaParticipants extends Command
                     'name' => $name,
                     'resident_block' => $teamLabel,
                     'age' => $this->defaultAge,
+                    'gender' => $gender,
                     'round' => 1,
                     'status' => 'active',
-                    'notes' => $note,
                 ]);
             }
 
             $created += $toCreate;
-            $suffix = $existingCount > 0 ? " (sudah ada {$existingCount} sebelumnya)" : '';
-            $this->line("{$prefix}- {$name}: dibuat {$toCreate} baris baru{$suffix}.");
+
+            $messageParts = [];
+            if ($toCreate > 0) {
+                $messageParts[] = "dibuat {$toCreate} baris baru";
+            }
+            if ($backfilled > 0) {
+                $messageParts[] = "diperbarui gender {$backfilled} baris lama";
+            }
+
+            $this->line($messageParts === []
+                ? "{$prefix}- {$name}: sudah ada di database ({$existing->count()}), gender sudah sesuai, dilewati."
+                : "{$prefix}- {$name}: " . implode(', ', $messageParts) . '.');
         }
 
         return $created;

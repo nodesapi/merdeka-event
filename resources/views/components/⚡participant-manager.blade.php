@@ -28,6 +28,7 @@ new class extends Component
     public $resident_block = '';
     public $phone_number = '';
     public $age = '';
+    public $gender = '';
 
     // Tambah tim (lomba grup): buat tim, lalu tambah anggota lintas keluarga
     public $new_team_name = '';
@@ -76,17 +77,19 @@ new class extends Component
             'resident_block' => 'nullable|string|max:100',
             'phone_number' => 'nullable|string|max:50',
             'age' => 'nullable|integer|min:0|max:120',
+            'gender' => 'nullable|in:L,P',
         ]);
 
         CompetitionParticipant::create(array_merge($data, [
             'competition_id' => $this->competitionId,
             'age' => $this->age === '' ? null : (int) $this->age,
+            'gender' => $this->gender === '' ? null : $this->gender,
             'round' => 1,
             'status' => 'active',
         ]));
 
         $this->success_message = 'Peserta "' . $this->name . '" berhasil ditambahkan.';
-        $this->reset(['name', 'resident_block', 'phone_number', 'age']);
+        $this->reset(['name', 'resident_block', 'phone_number', 'age', 'gender']);
     }
 
     public function addByRegistration()
@@ -750,7 +753,7 @@ new class extends Component
                 <span class="h-px flex-1 bg-slate-200"></span>
             </div>
 
-            <form wire:submit.prevent="addParticipant" class="grid grid-cols-1 md:grid-cols-[1.5fr_1fr_0.7fr_1fr_auto] gap-4 md:items-end">
+            <form wire:submit.prevent="addParticipant" class="grid grid-cols-1 md:grid-cols-[1.5fr_1fr_0.6fr_0.8fr_1fr_auto] gap-4 md:items-end">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Nama Peserta / Regu</label>
                     <input type="text" wire:model="name" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="Nama peserta">
@@ -765,6 +768,15 @@ new class extends Component
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Umur</label>
                     <input type="number" wire:model="age" min="0" max="120" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500" placeholder="10">
                     @error('age') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Gender (opsional)</label>
+                    <select wire:model="gender" class="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-1 focus:ring-red-500 focus:border-red-500">
+                        <option value="">-</option>
+                        <option value="L">Laki-laki</option>
+                        <option value="P">Perempuan</option>
+                    </select>
+                    @error('gender') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">No. HP (opsional)</label>

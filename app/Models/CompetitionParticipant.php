@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'resident_block',
     'phone_number',
     'age',
+    'gender',
     'round',
     'status',
     'rank',
@@ -52,12 +53,18 @@ class CompetitionParticipant extends Model
     }
 
     /**
-     * Gender tidak di-snapshot di tabel ini (beda dari age) — diambil dari data warga
-     * kalau peserta mendaftar via No. Daftar. Peserta manual (tamu non-warga) tidak punya ini.
+     * Untuk peserta warga (family_member_id terisi), gender ikut data warga —
+     * itu sumber kebenarannya. Untuk peserta manual (tamu non-warga), pakai
+     * kolom gender sendiri (diisi manual lewat form/command, karena tidak
+     * ada FamilyMember untuk diambil datanya).
      */
     public function getGenderAttribute(): ?string
     {
-        return $this->familyMember?->gender;
+        if ($this->family_member_id) {
+            return $this->familyMember?->gender;
+        }
+
+        return $this->attributes['gender'] ?? null;
     }
 
     public function getGenderLabelAttribute(): ?string
